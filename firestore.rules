@@ -1,0 +1,229 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Global Safety Net & Helpers
+    // ===============================================================
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isDocOwnerUid() {
+      return isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    function isDocOwnerUserId() {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ('email' in request.auth.token && request.auth.token.email == 'elashory7@gmail.com') ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         'role' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'owner'])
+      );
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function isValidId(id) { 
+      // Size check constraint enforced strictly
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // ===============================================================
+    // Type Validation Functions
+    // ===============================================================
+
+    function isValidDate(field) {
+      return field is timestamp || (field is string && field.size() <= 64);
+    }
+    
+    function isOptionalString(field) {
+      return field == null || (field is string && field.size() <= 200000); 
+      // 200KB is enough for large descriptions or stringified content
+    }
+
+    function isOptionalNumber(field) {
+      return field == null || field is number;
+    }
+
+    // ===============================================================
+    // Collection Specific Schemas
+    // ===============================================================
+
+    function isValidUser(data, isUpdate) {
+      let keys = data.keys();
+      return (isUpdate || keys.hasAll(['uid', 'email', 'name', 'role', 'plan', 'tokens', 'createdAt']))
+        && (!keys.has('uid') || (data.uid is string && data.uid.size() <= 128))
+        && (!keys.has('email') || (data.email is string && data.email.size() <= 256))
+        && (!keys.has('name') || (data.name is string && data.name.size() <= 200))
+        && (!keys.has('role') || (data.role is string && data.role in ['member', 'admin', 'owner']))
+        && (!keys.has('language') || (data.language is string && data.language.size() <= 10))
+        && (!keys.has('plan') || (data.plan is string && data.plan.size() <= 50))
+        && (!keys.has('tokens') || (data.tokens is number && data.tokens >= 0))
+        && (!keys.has('lastActiveAt') || (data.lastActiveAt is number))
+        && (!keys.has('createdAt') || isValidDate(data.createdAt));
+    }
+
+    function isValidBrandKit(data, isUpdate) { return true; }
+
+    function isValidProduct(data, isUpdate) {
+      let keys = data.keys();
+      return (isUpdate || keys.hasAll(['uid', 'url', 'description', 'images', 'createdAt']))
+        && (!keys.has('uid') || (data.uid is string && data.uid == request.auth.uid))
+        && (!keys.has('url') || (data.url is string && data.url.size() <= 2048))
+        && (!keys.has('description') || (data.description is string && data.description.size() <= 1000000))
+        && (!keys.has('images') || (data.images is list && data.images.size() <= 100))
+        && (!keys.has('createdAt') || isValidDate(data.createdAt));
+    }
+
+    function isValidHistory(data, isUpdate) {
+      let keys = data.keys();
+      return (isUpdate || keys.hasAll(['userId', 'type', 'content', 'description', 'createdAt']))
+        && (!keys.has('userId') || (data.userId is string && data.userId == request.auth.uid))
+        && (!keys.has('agencyId') || isOptionalString(data.agencyId))
+        && (!keys.has('type') || (data.type is string && data.type.size() <= 100))
+        && (!keys.has('content') || (data.content is string || data.content is list || data.content is map))
+        && (!keys.has('description') || (data.description is string && data.description.size() <= 1000000))
+        && (!keys.has('createdAt') || isValidDate(data.createdAt));
+    }
+
+    function isValidTokenTransaction(data, isUpdate) {
+      let keys = data.keys();
+      return (isUpdate || keys.hasAll(['userId', 'type', 'amount', 'feature', 'createdAt']))
+        && (!keys.has('userId') || (data.userId is string && data.userId == request.auth.uid))
+        && (!keys.has('agencyId') || isOptionalString(data.agencyId))
+        && (!keys.has('type') || (data.type is string && data.type.size() <= 50))
+        && (!keys.has('amount') || data.amount is number)
+        && (!keys.has('feature') || (data.feature is string && data.feature.size() <= 200))
+        && (!keys.has('createdAt') || isValidDate(data.createdAt));
+    }
+
+    function isValidAgencyTeam(data, isUpdate) {
+      let keys = data.keys();
+      return (isUpdate || keys.hasAll(['agencyId', 'email', 'role', 'permissions', 'addedAt']))
+        && (!keys.has('agencyId') || (data.agencyId is string && data.agencyId.size() <= 128))
+        && (!keys.has('email') || (data.email is string && data.email.size() <= 256))
+        && (!keys.has('role') || (data.role is string && data.role in ['editor', 'viewer', 'admin']))
+        && (!keys.has('permissions') || (data.permissions is list))
+        && (!keys.has('tokenLimit') || (data.tokenLimit is number))
+        && (!keys.has('tokensUsed') || (data.tokensUsed is number))
+        && (!keys.has('addedAt') || isValidDate(data.addedAt));
+    }
+
+    function isValidIntegration(data, isUpdate) {
+      let keys = data.keys();
+      return (isUpdate || keys.hasAll(['userId', 'platform', 'accessToken', 'createdAt']))
+        && (!keys.has('userId') || (data.userId is string && data.userId == request.auth.uid))
+        && (!keys.has('platform') || (data.platform is string && data.platform.size() <= 50))
+        && (!keys.has('accessToken') || (data.accessToken is string && data.accessToken.size() <= 2000))
+        && (!keys.has('merchantId') || isOptionalString(data.merchantId))
+        && (!keys.has('createdAt') || isValidDate(data.createdAt));
+    }
+
+    // ===============================================================
+    // Rules Logic
+    // ===============================================================
+
+    match /users/{uid} {
+      allow get: if isSignedIn(); // allow all authenticated users to read profiles to verify team owner balances
+      allow list: if isAdmin();
+      allow create: if isSignedIn() 
+                    && isValidId(uid) 
+                    && uid == request.auth.uid
+                    && isValidUser(incoming(), false)
+                    // MUST NOT create as admin/owner manually unless strict checks
+                    && (incoming().get('role', 'member') == 'member' || incoming().get('email', '') == 'elashory7@gmail.com');
+      
+      allow update: if isSignedIn() 
+                    && isValidId(uid) 
+                    && (uid == request.auth.uid || isAdmin() || (incoming().keys().hasOnly(['tokens'])))
+                    && isValidUser(incoming(), true)
+                    && (
+                      (uid == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'language', 'role', 'tokens', 'lastActiveAt', 'plan']) && (incoming().get('role', existing().role) == existing().role || incoming().get('email', existing().email) == 'elashory7@gmail.com' || isAdmin()))
+                      || 
+                      // allow agency members to deduct owner tokens via transaction
+                      (incoming().diff(existing()).affectedKeys().hasOnly(['tokens']))
+                      || isAdmin()
+                    );
+      allow delete: if isAdmin();
+    }
+
+    match /brandKits/{brandKitId} {
+      // Must be authenticated and either the owner or admin
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(brandKitId) && isValidBrandKit(incoming(), false);
+      allow update: if isSignedIn() 
+                    && isValidId(brandKitId) 
+                    && (isDocOwnerUserId() || isAdmin()) 
+                    && isValidBrandKit(incoming(), true);
+      allow delete: if isSignedIn() && isValidId(brandKitId) && (isDocOwnerUserId() || isAdmin());
+    }
+
+    match /products/{productId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(productId) && isValidProduct(incoming(), false);
+      allow update: if isSignedIn() 
+                    && isValidId(productId) 
+                    && (isDocOwnerUid() || isAdmin()) 
+                    && isValidProduct(incoming(), true);
+      allow delete: if isSignedIn() && isValidId(productId) && (isDocOwnerUid() || isAdmin());
+    }
+
+    match /history/{historyId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(historyId) && isValidHistory(incoming(), false);
+      allow update: if isSignedIn() 
+                    && isValidId(historyId) 
+                    && ((isDocOwnerUserId() || isAdmin()))
+                    && isValidHistory(incoming(), true);
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid || isAdmin());
+    }
+
+    match /tokenTransactions/{transactionId} {
+      // Anyone involved in a transaction (the user or the agency owner) can read it
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(transactionId) && isValidTokenTransaction(incoming(), false);
+      allow update: if isAdmin(); // Transactions are generally immutable
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    match /agencyTeams/{teamId} {
+      // Allowed if it's the owner or the invited member, or admin
+      allow read: if isSignedIn() && (resource.data.agencyId == request.auth.uid || resource.data.email == request.auth.token.email || isAdmin());
+      allow list: if isSignedIn() && (resource.data.agencyId == request.auth.uid || resource.data.email == request.auth.token.email || isAdmin());
+      allow create: if isSignedIn() 
+                    && isValidId(teamId) 
+                    && incoming().agencyId == request.auth.uid 
+                    && isValidAgencyTeam(incoming(), false);
+      allow update: if isSignedIn() 
+                    && isValidId(teamId) 
+                    && (resource.data.agencyId == request.auth.uid || isAdmin())
+                    && isValidAgencyTeam(incoming(), true)
+                    && (incoming().diff(existing()).affectedKeys().hasOnly(['role', 'permissions', 'tokenLimit', 'tokensUsed']) || isAdmin());
+      allow delete: if isSignedIn() && isValidId(teamId) && (resource.data.agencyId == request.auth.uid || isAdmin());
+    }
+
+    match /integrations/{integrationId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(integrationId) && isValidIntegration(incoming(), false);
+      allow update: if isSignedIn() && isValidId(integrationId) && (isDocOwnerUserId() || isAdmin()) && isValidIntegration(incoming(), true);
+      allow delete: if isSignedIn() && isValidId(integrationId) && (isDocOwnerUserId() || isAdmin());
+    }
+  }
+}

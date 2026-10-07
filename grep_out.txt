@@ -1,0 +1,221 @@
+          <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2 px-2">{t("مسار العمل (Funnel)")}</div>
+              <div className="font-bold">{t("1. جلسة التصوير")}</div>
+              <div className="text-[10px] opacity-70">{t("توليد صور احترافية للمنتج")}</div>
+              <div className="font-bold">{t("2. صفحة الهبوط")}</div>
+              <div className="text-[10px] opacity-70">{t("تصميم أقسام صفحة المبيعات")}</div>
+              <div className="font-bold">{t("3. الكريتيفز الإعلانية")}</div>
+              <div className="text-[10px] opacity-70">{t("توليد 10 تصميمات إعلانية")}</div>
+              <div className="font-bold">{t("4. سكريبتات الفيديو")}</div>
+              <div className="text-[10px] opacity-70">{t("كتابة سكريبتات وتوليد صوت")}</div>
+              <div className="font-bold">{t("5. نصوص الإعلانات")}</div>
+              <div className="text-[10px] opacity-70">{t("كتابة نصوص فيسبوك وتيك توك")}</div>
+              <div className="font-bold">{t("6. هيكل صفحة الهبوط")}</div>
+              <div className="text-[10px] opacity-70">{t("كتابة محتوى صفحة المبيعات")}</div>
+              <div className="font-bold">{t("7. مشاهد فيديو (Flow)")}</div>
+              <div className="text-[10px] opacity-70">{t("توليد مشاهد وأوامر لـ Veo 3")}</div>
+              <div className="font-bold">{t("8. إعادة توليد الانجل الوينر")}</div>
+              <div className="text-[10px] opacity-70">{t("استنساخ زاوية فيديو ناجح")}</div>
+              <div className="font-bold">{t("9. أوامر توليد تصاميم الإعلانات")}</div>
+              <div className="text-[10px] opacity-70">{t("إنشاء Prompts قوية للديزاينات")}</div>
+              <div className="font-bold">{t("سجل المحفوظات")}</div>
+              <div className="text-[10px] opacity-70">{t("النصوص والمشاهد السابقة")}</div>
+                <button onClick={handleLogout} className="p-2 text-zinc-400 hover:text-fuchsia-600 transition-colors" title={t("تسجيل الخروج")}>
+                {t("تسجيل الدخول لحفظ المنتجات")}</button>
+            <p className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500">{t("تمت البرمجة بواسطة")}<span className="text-fuchsia-600 dark:text-fuchsia-400 font-bold">{t("محمد العاشوري")}</span></p>
+            <p className="text-[8px] text-zinc-400/70 dark:text-zinc-500/70 mt-0.5">{t("جميع الحقوق محفوظة &copy;")}{new Date().getFullYear()}</p>
+              <h2 className="text-lg font-black text-white drop-shadow-md">{t("مولّد الإعلانات الذكي ✨")}</h2>
+              <p className="text-xs text-fuchsia-100 font-medium">{t("خطوتك الأسرع لمضاعفة مبيعاتك بنقرة واحدة")}</p>
+                {t("سجل المحفوظات")}</button>
+                  <button onClick={handleLogout} className="p-1.5 text-white/70 hover:text-white hover:bg-white/10 transition-colors rounded-lg" title={t("تسجيل الخروج")}>
+                  {t("تسجيل الدخول")}</button>
+                  <h2 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-white">{t("بيانات المنتج")}</h2>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("استخراج من رابط (اختياري)")}</label>
+                        placeholder={t("رابط صفحة المنتج...")}
+                    {t("سيقوم الذكاء الاصطناعي بجلب الوصف والصور تلقائياً من الرابط.")}</p>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("صور المنتج (اسحب وأفلت أو اضغط للرفع)")}</label>
+                      <span className="text-xs mt-1 text-zinc-400 dark:text-zinc-500">{t("أو اضغط لاختيار الملفات")}</span>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("وصف المنتج")}</label>
+                    placeholder={t("اكتب وصفاً تفصيلياً للمنتج، مميزاته، ولمن يصلح...")}
+                    {t("يمكنك كتابة أي أوامر أو تفاصيل إضافية للسكريبتات، أكواد، أو صور مولّدة براحتك كإضافة بعد وصف المنتج.")}</p>
+                          {t("اللهجة")}</label>
+                          <option value="egyptian">{t("المصرية (عامية)")}</option>
+                          <option value="saudi">{t("السعودية (عامية)")}</option>
+                          <option value="emirati">{t("الإماراتية")}</option>
+                          <option value="libyan">{t("الليبية")}</option>
+                          <option value="iraqi">{t("العراقية")}</option>
+                          <option value="syrian">{t("السورية")}</option>
+                          <option value="palestinian">{t("الفلسطينية")}</option>
+                          <option value="english">{t("الإنجليزية")}</option>
+                          <option value="standard">{t("العربية الفصحى")}</option>
+                            {t("نوع المشاهد")}</label>
+                            <option value="consecutive">{t("5 مشاهد متتالية (إعلان كامل)")}</option>
+                            <option value="hooks">{t("5 هوكات مختلفة (بدايات فقط)")}</option>
+                            {t("الخط")}</label>
+                            <option value="font-cairo">{t("Cairo (عصري وجريء)")}</option>
+                            <option value="font-tajawal">{t("Tajawal (أنيق ورسمي)")}</option>
+                            <option value="font-almarai">{t("Almarai (واضح ومقروء)")}</option>
+                            <option value="font-readex">{t("Readex Pro (تقني وحديث)")}</option>
+                            <option value="font-ibm">{t("IBM Plex (احترافي)")}</option>
+                          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("لون الهوية (العناصر المميزة)")}</label>
+                                title={t("اختر لون مخصص")}
+                          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("تصميم صفحة الهبوط والإعلانات")}</label>
+                                <div className="font-medium text-zinc-900 dark:text-white">{t("تكنولوجي حديث (Tech)")}</div>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-400">{t("خلفيات داكنة، إضاءات نيون، عناصر عائمة (مناسب للإلكترونيات)")}</div>
+                                <div className="font-medium text-zinc-900 dark:text-white">{t("أسلوب حياة (Lifestyle)")}</div>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-400">{t("تصميم نظيف، نصوص واضحة، التركيز على الاستخدام اليومي")}</div>
+                                <div className="font-medium text-zinc-900 dark:text-white">{t("بيع مباشر (Direct Response)")}</div>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-400">{t("مقارنات واضحة، خطوات استخدام، تركيز على التقييمات والضمان")}</div>
+                                <div className="font-medium text-zinc-900 dark:text-white">{t("أنيق وبسيط (Minimal & Elegant)")}</div>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-400">{t("خلفيات فاتحة، مساحات بيضاء، تصميم هادئ واحترافي")}</div>
+                                <div className="font-medium text-zinc-900 dark:text-white">{t("فخم وراقي (Luxury & Elegant)")}</div>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-400">{t("ألوان دافئة، خطوط رفيعة، تصميم يعكس الجودة العالية")}</div>
+                                <div className="font-medium text-zinc-900 dark:text-white">{t("قوي وجريء (Bold & Dynamic)")}</div>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-400">{t("تباين عالي، ألوان صارخة، تصميم يخطف الأنظار")}</div>
+                                <div className="font-medium text-zinc-900 dark:text-white">{t("بريميوم مخصص (Premium Custom)")}</div>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-400">{t("تصميم احترافي مخصص حسب المنتج، خالي من العناصر النسائية، مع تركيز على الألوان والمجال")}</div>
+                              {t("لون النص الأساسي")}</label>
+                              <option value="text-white">{t("أبيض")}</option>
+                              <option value="text-black">{t("أسود")}</option>
+                              <option value="text-slate-900">{t("رمادي داكن")}</option>
+                              <option value="theme">{t("لون الهوية")}</option>
+                              <optgroup label={t("تدرجات لونية (ميكسات)")}>
+                                <option value="bg-gradient-to-r from-purple-500 to-pink-500 text-transparent bg-clip-text">{t("بنفسجي - وردي")}</option>
+                                <option value="bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text">{t("سماوي - أزرق")}</option>
+                                <option value="bg-gradient-to-r from-amber-400 to-orange-500 text-transparent bg-clip-text">{t("أصفر - برتقالي")}</option>
+                                <option value="bg-gradient-to-r from-emerald-400 to-teal-500 text-transparent bg-clip-text">{t("أخضر - فيروزي")}</option>
+                                <option value="bg-gradient-to-r from-rose-400 to-fuchsia-500 text-transparent bg-clip-text">{t("وردي - أحمر")}</option>
+                                <option value="bg-gradient-to-r from-indigo-500 to-purple-500 text-transparent bg-clip-text">{t("نيلي - بنفسجي")}</option>
+                              {t("تأثير النص")}</label>
+                              <option value="none">{t("بدون تأثير")}</option>
+                              <option value="drop-shadow-md">{t("ظل خفيف")}</option>
+                              <option value="drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">{t("ظل قوي")}</option>
+                              <option value="text-outline-black">{t("إطار أسود رفيع (Outline)")}</option>
+                              <option value="text-outline-white">{t("إطار أبيض رفيع (Outline)")}</option>
+                              <option value="text-outline-black-thick">{t("إطار أسود سميك")}</option>
+                              <option value="text-outline-white-thick">{t("إطار أبيض سميك")}</option>
+                              {t("خلفية النصوص (البلوكات)")}</label>
+                                {t("داخل بلوكات (كما هو)")}</button>
+                                {t("بدون خلفية (نص حر)")}</button>
+                          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("مدة الفيديو")}</label>
+                          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("عدد السكريبتات")}</label>
+                          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("أنواع السكريبتات (اختر")}{scriptCount})</label>
+                      <span className="font-medium block text-fuchsia-900 dark:text-fuchsia-400">{t("توليد خلفيات بالذكاء الاصطناعي (ميزة متقدمة)")}</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">{t("يضع المنتج في بيئات مختلفة. قد يستغرق وقتاً أطول ويتطلب باقة مدفوعة لتجنب حدود الاستخدام.")}</span>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("عدد الأوامر/التصاميم")}</label>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("نموذج الذكاء الاصطناعي")}</label>
+                      <div className={`font-medium ${aiModel === 'free' ? 'text-fuchsia-600 dark:text-fuchsia-400' : 'text-zinc-700 dark:text-zinc-300'}`}>{t("النموذج المجاني (سريع)")}</div>
+                      <div className={`font-medium ${aiModel === 'pro' ? 'text-fuchsia-600 dark:text-fuchsia-400' : 'text-zinc-700 dark:text-zinc-300'}`}>{t("النموذج المتقدم (Pro)")}</div>
+                          {t("جاري الإنشاء...")}</>
+                        title={t("إيقاف الإنشاء")}
+                          {t("جاري الإنشاء...")}</>
+                        title={t("إيقاف الإنشاء")}
+                          {t("جاري كتابة السكريبت...")}</>
+                        title={t("إيقاف الإنشاء")}
+                          {t("جاري كتابة الإعلانات...")}</>
+                        title={t("إيقاف الإنشاء")}
+                          {t("جاري كتابة الاستراكشر...")}</>
+                        title={t("إيقاف الإنشاء")}
+                          {t("جاري توليد المشاهد...")}</>
+                        title={t("إيقاف الإنشاء")}
+                          {t("جاري التوليد...")}</>
+                        title={t("إيقاف الإنشاء")}
+                          {t("جاري التوليد...")}</>
+                        title={t("إيقاف الإنشاء")}
+                          {t("جاري التصوير...")}</>
+                        title={t("إيقاف الإنشاء")}
+                <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">{t("حالة تقدم صفحة الهبوط")}</h3>
+                <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">{t("حالة تقدم الإعلانات")}</h3>
+                <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">{t("حالة تقدم جلسة التصوير")}</h3>
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("الصور الناتجة (صفحة الهبوط)")}</h2>
+                        {t("تحميل الكل")}</button>
+                      <p>{t("الصور ستظهر هنا بعد الإنشاء")}</p>
+                          <span className="text-sm text-center px-2">{t("جاري تصميم الصورة")}{progress.current > sections.length ? progress.current - sections.length + 1 : 1}...</span>
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("الكريتيفز الإعلانية (AI)")}</h2>
+                        {t("تحميل الكل")}</button>
+                      <p>{t("الكريتيفز الإعلانية ستظهر هنا بعد الإنشاء")}</p>
+                          <span className="text-sm text-center px-2">{t("جاري تصميم الإعلان")}{adsProgress.current > adSections.length ? adsProgress.current - adSections.length + 1 : 1}...</span>
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("سكريبتات الفيديو (AI)")}</h2>
+                            {t("تحميل WAV")}</button>
+                            {t("تحميل MP3")}</button>
+                              {t("جاري التوليد...")}</>
+                              {t("توليد الصوت للجميع")}</>
+                      <p>{t("سكريبتات الفيديو ستظهر هنا بعد الإنشاء")}</p>
+                      <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">{t("جاري كتابة السكريبتات...")}</p>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-2">{t("نصنع هوك قوي يجذب الانتباه")}</p>
+                                {t("التعليق الصوتي (AI)")}</h4>
+                                    {t("جاري التوليد...")}</>
+                                  {t("متصفحك لا يدعم تشغيل الصوت.")}</audio>
+                                    title={t("تحميل WAV")}
+                                    title={t("تحميل MP3")}
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("نسخ إعلانات فيسبوك (AI)")}</h2>
+                      <p>{t("نسخ إعلانات فيسبوك ستظهر هنا بعد الإنشاء")}</p>
+                      <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">{t("جاري كتابة الإعلانات...")}</p>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-2">{t("نصنع 5 أنواع مختلفة من الإعلانات")}</p>
+                              {t("عناوين تيك توك (TikTok Headlines)")}</h3>
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">{t("نسخ إعلانات فيسبوك")}</h3>
+                                <span className="font-bold text-fuchsia-600 dark:text-fuchsia-400 block mb-1">{t("Hook (الخطاف):")}</span>
+                                <span className="font-bold text-fuchsia-600 dark:text-fuchsia-400 block mb-1">{t("Body (المحتوى):")}</span>
+                                <span className="font-bold text-fuchsia-600 dark:text-fuchsia-400 block mb-1">{t("CTA (الدعوة لاتخاذ إجراء):")}</span>
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("استراكشر لاند بيدج (AI)")}</h2>
+                      <p>{t("استراكشر اللاند بيدج سيظهر هنا بعد الإنشاء")}</p>
+                      <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">{t("جاري كتابة الاستراكشر...")}</p>
+                          {t("النص الكامل")}</h3>
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("مشاهد فيديو (Flow / Veo 3)")}</h2>
+                      <p>{t("المشاهد والأوامر ستظهر هنا بعد الإنشاء")}</p>
+                      <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">{t("جاري توليد المشاهد...")}</p>
+                                <h4 className="font-semibold text-zinc-700 dark:text-zinc-300">{t("Visual Prompt (لبرنامج Flow):")}</h4>
+                                  <Copy className="w-3 h-3" /> {t("نسخ")}</button>
+                                <h4 className="font-semibold text-zinc-700 dark:text-zinc-300">{t("السكريبت (التعليق الصوتي):")}</h4>
+                                  <Copy className="w-3 h-3" /> {t("نسخ")}</button>
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("إعادة توليد الانجل الوينر")}</h2>
+                        {t("نسخ كل المحتوى")}</button>
+                      {t("ارفع فيديو الانجل الوينر (الحد الأقصى 20 ميجابايت)")}</label>
+                          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">{t("اسحب وأفلت الفيديو هنا أو اضغط للاختيار")}</p>
+                          <p className="text-xs text-zinc-500 mt-2">{t("يدعم MP4, MOV, WEBM (حتى 20MB)")}</p>
+                          {t("سكريبت الفيديو الأصلي (قابل للتعديل)")}</label>
+                              {t("جاري الاستخراج...")}</>
+                              {t("استخراج السكريبت")}</>
+                        placeholder={t("سيظهر السكريبت المستخرج هنا، ويمكنك تعديله قبل التوليد...")}
+                      <p>{t("قم برفع الفيديو واستخراج السكريبت لتوليد سكريبتات جديدة")}</p>
+                      <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">{t("جاري تحليل الفيديو وتوليد السكريبتات...")}</p>
+                                <Copy className="w-3 h-3" /> {t("نسخ")}</button>
+                                  title={t("تحميل WAV")}
+                                  title={t("تحميل MP3")}
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("أوامر توليد تصاميم الإعلانات (Creative Prompts)")}</h2>
+                      <p>{t("قم بإدخال وصف المنتج لتوليد ديزاينات إعلانية قوية ومفصلة")}</p>
+                      <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">{t("جاري وضع تصور شامل للديزاينات المبيعية وحساب أبعادها...")}</p>
+                            {t("الديزاين #")}{index + 1}
+                                {t("الفكرة والزاوية البيعية")}</h4>
+                                {t("الاستايل البصري والألوان")}</h4>
+                            <h4 className="text-sm font-bold text-zinc-300 mb-4 opacity-80 uppercase tracking-wider text-center">{t("النص التسويقي (Text Overlay)")}</h4>
+                                {t("تفاصيل التصميم (Layout Breakdown)")}</h4>
+                                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-1">{t("الخلفية:")}</span>
+                                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-1">{t("موضع المنتج (Product Placement):")}</span>
+                                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">{t("عناصر إضافية على الديزاين:")}</span>
+                                {t("أمر توليد التصميم للذكاء الاصطناعي (AI Prompt)")}</h4>
+                                <Copy className="w-3 h-3" /> {t("انسخ الأمر (Prompt)")}</button>
+                              {t("يمكنك استخدام هذا الأمر الشامل في نماذج توليد الصور (مثل Midjourney أو DALL-E) لتوليد التصميم كاملاً بكل تفاصيله.")}</p>
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("سجل المحفوظات")}</h2>
+                      <p className="mb-4">{t("يرجى تسجيل الدخول لعرض سجل المحفوظات")}</p>
+                        {t("تسجيل الدخول")}</button>
+                      <p className="text-lg font-medium text-zinc-600 dark:text-zinc-400">{t("جاري تحميل السجل...")}</p>
+                      <p>{t("لا يوجد سجل محفوظات حتى الآن")}</p>
+                              title={t("حذف من السجل")}
+                              <span className="font-semibold text-zinc-700 dark:text-zinc-300">{t("وصف المنتج:")}</span> {item.description}
+                                    <h4 className="font-bold text-fuchsia-600 dark:text-fuchsia-400 mb-2 border-b border-zinc-100 dark:border-zinc-800 pb-2">{t("تصميم")}{idx + 1}</h4>
+                                        <p className="text-xs font-semibold text-zinc-500 uppercase">{t("الفكرة البيعية:")}</p>
+                                        <p className="text-xs font-semibold text-zinc-500 uppercase">{t("الاستايل البصري:")}</p>
+                                        <p className="text-xs font-semibold text-fuchsia-400 mb-1">{t("النص التسويقي")}</p>
+                                        <p className="text-xs font-semibold text-zinc-500 uppercase mb-2">{t("تفاصيل التصميم")}</p>
+                                          <li><span className="font-semibold">{t("الخلفية:")}</span> {promptData.layout.background}</li>
+                                          <li><span className="font-semibold">{t("المنتج:")}</span> {promptData.layout.productPlacement}</li>
+                                    <p className="text-xs font-semibold text-zinc-500 uppercase mb-1">{t("أمر توليد التصميم الشامل (AI Prompt):")}</p>
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("مشاهد المنتج (AI)")}</h2>
+                            {t("جاري النقل...")}</>
+                            {t("استخدام")}{selectedPhotoshootImages.size} {t("صور في صفحة الهبوط")}</>
+                      <p>{t("مشاهد المنتج ستظهر هنا بعد الإنشاء")}</p>
+                          <span className="text-sm text-center px-2">{t("جاري تصوير المشهد")}{photoshootProgress.current + 1}...</span>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{t("تأكيد تغيير التصميم")}</h3>
+              {t("تغيير نمط التصميم قد يؤدي إلى إعادة تعيين بعض التخصيصات الحالية (مثل الألوان أو الخطوط) لتتناسب مع النمط الجديد. هل أنت متأكد من رغبتك في المتابعة؟")}</p>
+                {t("إلغاء")}</button>
+                {t("تأكيد التغيير")}</button>

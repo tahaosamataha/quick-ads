@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Warm Golden Yellow Background -->
+  <rect width="512" height="512" rx="64" fill="#F0B21B"/>
+  
+  <g fill="#111111">
+    <!-- Left Eye: Tilted Oval -->
+    <ellipse cx="212" cy="154" rx="38" ry="52" transform="rotate(-8 212 154)"/>
+    
+    <!-- Right Eye: Wink Arc Segment -->
+    <path d="M 268 118 
+             A 100 100 0 0 1 344 125 
+             L 330 174 
+             A 62 62 0 0 0 274 168 
+             Z"/>
+    
+    <!-- Smile: Big sweeping arc segment -->
+    <path d="M 100 280 
+             L 153 266 
+             A 140 140 0 0 0 367 212 
+             L 422 195 
+             A 198 198 0 0 1 100 280 
+             Z"/>
+             
+    <!-- Registered Mark (R) -->
+    <g transform="translate(118, 382)">
+      <circle cx="0" cy="0" r="10" fill="none" stroke="#111111" stroke-width="2"/>
+      <text x="0" y="3.5" font-family="Arial, sans-serif" font-size="9" font-weight="bold" text-anchor="middle" fill="#111111">R</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,65 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Alexandria", "Cairo", ui-sans-serif, system-ui, sans-serif;
+  --font-alexandria: "Alexandria", sans-serif;
+  --font-cairo: "Cairo", sans-serif;
+  --font-tajawal: "Tajawal", sans-serif;
+  --font-almarai: "Almarai", sans-serif;
+  --font-readex: "Readex Pro", sans-serif;
+  --font-ibm: "IBM Plex Sans Arabic", sans-serif;
+  --font-ge: "GE SS Two", "GE SS Two Light", "Cairo", sans-serif;
+  --font-din: "DIN Next LT Arabic", "DIN Next Arabic", "Cairo", sans-serif;
+  
+  --color-brand-yellow: #F0B21B;
+  --color-brand-yellow-hover: #DF9F10;
+  --color-brand-yellow-light: #FBC947;
+  --color-brand-black: #09090b;
+  --color-brand-black-pure: #000000;
+  --color-brand-dark: #121214;
+  --color-brand-dark-card: #18181b;
+  --color-brand-bg: #FAF9F6;
+}
+
+* {
+  font-family: 'Alexandria', 'Cairo', sans-serif;
+}
+
+body {
+  font-family: 'Alexandria', 'Cairo', sans-serif;
+  background-color: var(--color-brand-bg);
+  color: #09090b;
+}
+
+@utility text-outline-black {
+  filter: 
+    drop-shadow(1px 1px 0px black) 
+    drop-shadow(-1px -1px 0px black) 
+    drop-shadow(1px -1px 0px black) 
+    drop-shadow(-1px 1px 0px black);
+}
+
+@utility text-outline-white {
+  filter: 
+    drop-shadow(1px 1px 0px white) 
+    drop-shadow(-1px -1px 0px white) 
+    drop-shadow(1px -1px 0px white) 
+    drop-shadow(-1px 1px 0px white);
+}
+
+@utility text-outline-black-thick {
+  filter: 
+    drop-shadow(2px 2px 0px black) 
+    drop-shadow(-2px -2px 0px black) 
+    drop-shadow(2px -2px 0px black) 
+    drop-shadow(-2px 2px 0px black);
+}
+
+@utility text-outline-white-thick {
+  filter: 
+    drop-shadow(2px 2px 0px white) 
+    drop-shadow(-2px -2px 0px white) 
+    drop-shadow(2px -2px 0px white) 
+    drop-shadow(-2px 2px 0px white);
+}

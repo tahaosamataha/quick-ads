@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix elashory| quick ads",
+  "description": "Generate a 10-image landing page carousel from a product image and description.",
+  "requestFramePermissions": [
+    "clipboard-read",
+    "clipboard-write"
+  ]
+}

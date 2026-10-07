@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<style>
+  .gradient-text {
+    font-size: 80px;
+    font-family: sans-serif;
+    font-weight: bold;
+    background: linear-gradient(to right, #ff00cc, #3333ff);
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  .outline-stroke {
+    -webkit-text-stroke: 2px white;
+  }
+  .outline-filter {
+    filter: 
+      drop-shadow(1px 1px 0px black) 
+      drop-shadow(-1px -1px 0px black) 
+      drop-shadow(1px -1px 0px black) 
+      drop-shadow(-1px 1px 0px black);
+  }
+  .outline-filter-thick {
+    filter: 
+      drop-shadow(2px 2px 0px black) 
+      drop-shadow(-2px -2px 0px black) 
+      drop-shadow(2px -2px 0px black) 
+      drop-shadow(-2px 2px 0px black);
+  }
+</style>
+</head>
+<body style="background: #ccc;">
+  <div class="gradient-text outline-stroke">تجربة النص (Stroke)</div>
+  <div class="gradient-text outline-filter">تجربة النص (Filter)</div>
+  <div class="gradient-text outline-filter-thick">تجربة النص (Filter Thick)</div>
+</body>
+</html>
