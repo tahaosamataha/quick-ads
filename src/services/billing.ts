@@ -10,116 +10,16 @@ export const TOKEN_COSTS = {
    TEXT: 2
 };
 
-export async function checkBalance(amount: number) {
-    if (amount <= 0) return true;
-    
-    let currentTokens = 0;
-    let role = 'member';
-    
-    const currentUser = auth.currentUser;
-    // Allow immediate guest access without logging in
-    if (!currentUser) return true;
-    
-    // We can just rely on the existing profile from frontend or fetch it
-    const userRef = doc(db, 'users', currentUser.uid);
-    try {
-        const userDoc = await getDoc(userRef);
-        if (userDoc.exists()) {
-            const data = userDoc.data();
-            currentTokens = data.tokens || 0;
-            role = data.role || 'member';
-        }
-    } catch (error) {
-        handleFirestoreError(error, OperationType.GET, 'users/' + currentUser.uid);
-    }
-    
-    if (currentTokens < amount && role !== 'owner' && role !== 'admin') {
-        throw new Error("عذراً، رصيد التوكينز الخاص بك غير كافٍ. يرجى الترقية أو شحن الرصيد.");
-    }
+export async function checkBalance(_amount: number) {
+    // All token limits removed per user instructions - unlimited team access
     return true;
 }
 
-export async function deductTokens(amount: number, feature: string, link: string = '', productName: string = '') {
-    if (amount <= 0) return true;
-
-    const currentUser = auth.currentUser;
-    // Allow immediate guest access without logging in
-    if (!currentUser) return true;
-
-    // Pre-fetch team info outside transaction to record usage later, optional
-    let agencyMemberDocId = null;
-    let agencyId = null;
-    try {
-        const agencyTeamsRef = collection(db, 'agencyTeams');
-        const q = query(agencyTeamsRef, where('email', '==', currentUser.email?.toLowerCase()));
-        const teamSnap = await getDocs(q);
-        if (!teamSnap.empty) {
-            agencyMemberDocId = teamSnap.docs[0].id;
-            agencyId = teamSnap.docs[0].data().agencyId;
-        }
-    } catch (error) {
-        console.error("Error finding agency membership:", error);
-        // We handle this as a non-fatal error but if it's permission denied we might want to know
-        if (error instanceof Error && error.message.includes('permission')) {
-             handleFirestoreError(error, OperationType.LIST, 'agencyTeams');
-        }
-    }
-
-    try {
-        await runTransaction(db, async (transaction) => {
-            const userRef = doc(db, 'users', currentUser.uid);
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists()) {
-                throw new Error("User account not found!");
-            }
-            
-            const userData = userDoc.data();
-            const currentTokens = userData.tokens || 0;
-            const role = userData.role || 'member';
-
-            if (currentTokens < amount && role !== 'owner' && role !== 'admin') {
-                throw new Error("NOT_ENOUGH_TOKENS");
-            }
-            
-            // Deduct from the acting user
-            transaction.update(userRef, { tokens: Math.max(0, currentTokens - amount) });
-            
-            // If member, update their usage running total
-            if (agencyMemberDocId) {
-                const memberRef = doc(db, 'agencyTeams', agencyMemberDocId);
-                const memberDoc = await transaction.get(memberRef);
-                if (memberDoc.exists()) {
-                    const currentMemberTokensUsed = memberDoc.data().tokensUsed || 0;
-                    transaction.update(memberRef, { tokensUsed: currentMemberTokensUsed + amount });
-                }
-            }
-            
-            const txRef = doc(collection(db, 'tokenTransactions'));
-            transaction.set(txRef, {
-                userId: currentUser.uid,
-                userEmail: currentUser.email || '',
-                userName: currentUser.displayName || '',
-                agencyId: agencyId, // Optional reference for the owner
-                type: 'usage',
-                amount: amount,
-                feature: feature,
-                link: link,
-                productName: productName,
-                createdAt: new Date().toISOString()
-            });
-        });
-        
-        return true;
-    } catch (e: any) {
-        if (e.message === "NOT_ENOUGH_TOKENS") {
-            throw new Error("عذراً، رصيد التوكينز الخاص بك غير كافٍ. يرجى الترقية أو شحن الرصيد.");
-        }
-        if (e.message?.includes('permission')) {
-             handleFirestoreError(e, OperationType.WRITE, 'deductTokens transaction');
-        }
-        throw e;
-    }
+export async function deductTokens(_amount: number, _feature: string, _link: string = '', _productName: string = '') {
+    // All token deductions removed per user instructions
+    return true;
 }
+
 
 export async function allocateTokensToMember(agencyTeamId: string, memberEmail: string, newTokenLimit: number, oldTokenLimit: number) {
     const currentUser = auth.currentUser;

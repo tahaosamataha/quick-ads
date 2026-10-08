@@ -161,7 +161,7 @@ export default function PrivacyPolicy() {
               <li>Object to certain types of processing</li>
               <li>Request export of your data</li>
             </ul>
-            <p>To exercise any of these rights, contact us at: <a href="mailto:elashory7@gmail.com" className="text-indigo-500 font-bold">elashory7@gmail.com</a></p>
+            <p>To exercise any of these rights, contact us at: <a href="mailto:support@quickads.ai" className="text-indigo-500 font-bold">support@quickads.ai</a></p>
           </section>
 
           <section className="mb-8 p-6 bg-indigo-500/5 rounded-3xl border border-indigo-500/10">

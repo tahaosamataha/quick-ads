@@ -788,24 +788,27 @@ try {
 
 export async function generateScenePrompts(
   description: string, 
+  countOrModel: number | 'flash' | 'pro' = 4,
   modelType: 'flash' | 'pro' = 'flash',
   retries = 3,
   delay = 3000,
   brandKit?: any
 ): Promise<string[]> {
+  const count = typeof countOrModel === 'number' ? countOrModel : 4;
+  const actualModel = typeof countOrModel === 'string' ? countOrModel : modelType;
   const brandKitInstruction = typeof brandKit !== 'undefined' ? getBrandKitInstruction(brandKit) : '';
-  const modelName = modelType === 'pro' ? "gemini-3.1-pro-preview" : "gemini-3.8-flash";
+  const modelName = actualModel === 'pro' ? "gemini-3.1-pro-preview" : "gemini-3.8-flash";
 
   try {
     const response = await getAI().models.generateContent({
       model: modelName,
-      contents: `Based on this product description: "${description}", generate 8 distinct, highly descriptive prompts for an AI image generator to place this product in different, visually appealing, and highly interactive contexts. 
+      contents: `Based on this product description: "${description}", generate EXACTLY ${count} distinct, highly descriptive prompts for an AI image generator to place this product in different, visually appealing, and highly interactive contexts. 
       CRITICAL: Do not just change the background. Create dynamic scenes based on the product's features. For example:
       - If it's water-resistant, show water splashing on it or place it in the rain.
       - If it's a kid's toy, show a child actively playing with it.
       - If it's a smart doorbell, show a finger pressing it or a delivery person interacting with it.
       Make the scenes realistic, action-oriented, and diverse.
-      Return ONLY a JSON array of 8 strings. Example: ["water splashing dramatically over the product in a dark moody setting", "a young child happily riding the product in a sunny park", ...]`,
+      Return ONLY a JSON array of ${count} strings. Example: ["water splashing dramatically over the product in a dark moody setting", "a young child happily riding the product in a sunny park", ...]`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -822,7 +825,8 @@ try {
     throw e;
 }
 
-    return Array.isArray(parsed) ? parsed : (parsed.prompts || parsed.scenes || parsed.items || [parsed]);
+    const list = Array.isArray(parsed) ? parsed : (parsed.prompts || parsed.scenes || parsed.items || [parsed]);
+    return list.slice(0, count);
   } catch (error: any) {
     const isRateLimit = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota') || error?.status === 'RESOURCE_EXHAUSTED';
     const isInternalError = error?.status === 500 || error?.message?.includes('500') || error?.message?.includes('Internal error') || error?.status === 'INTERNAL';
@@ -830,7 +834,7 @@ try {
     if ((isRateLimit || isInternalError) && retries > 0) {
       console.warn(`API error (${isRateLimit ? 'Rate Limit' : 'Internal Error'}). Retrying in ${delay}ms... (${retries} retries left)`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      return generateScenePrompts(description, modelType, retries - 1, delay * 2);
+      return generateScenePrompts(description, count, actualModel, retries - 1, delay * 2, brandKit);
     }
     throw error;
   }
@@ -1039,11 +1043,12 @@ export async function generateFbAdCopies(
 
   const brandKitInstruction = typeof brandKit !== 'undefined' ? getBrandKitInstruction(brandKit) : '';
   const modelName = modelType === 'pro' ? "gemini-3.1-pro-preview" : "gemini-3.8-flash";
+  const targetFbCount = selectedFbAdTypes.length > 0 ? selectedFbAdTypes.length : 3;
   const typesText = autoFbAngles
-    ? `You are a master marketer and copywriter with over 20 years of experience. Fully automate the angle creation and find exactly 5 unique, deeply researched, and highly converting angles tailored specifically to this product. Disregard any standard preset types and innovate completely outside the box to avoid boring/repetitive ads.`
+    ? `You are a master marketer and copywriter with over 20 years of experience. Fully automate the angle creation and find exactly ${targetFbCount} unique, deeply researched, and highly converting angles tailored specifically to this product. Disregard any standard preset types and innovate completely outside the box to avoid boring/repetitive ads.`
     : (selectedFbAdTypes.length > 0 
       ? `Generate exactly ${selectedFbAdTypes.length} Facebook ad copies. Each copy MUST strictly follow one of these exact types in order:\n${selectedFbAdTypes.map((t, i) => `Type ${i+1}: ${t}`).join('\n')}`
-      : `Generate exactly 5 different types of ad copies (e.g., Storytelling, Direct Offer, Problem/Solution, Testimonial/Review, Urgency/Scarcity).`);
+      : `Generate exactly 3 different types of ad copies (e.g., Storytelling, Direct Offer, Problem/Solution, Testimonial/Review, Urgency/Scarcity).`);
 
   try {
     const response = await getAI().models.generateContent({

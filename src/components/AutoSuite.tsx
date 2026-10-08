@@ -102,6 +102,7 @@ export const AutoSuite: React.FC = () => {
   const [flowVoiceGender, setFlowVoiceGender] = useState('female');
   const [textVisualMode, setTextVisualMode] = useState<'sequential' | 'high_ctr_fixed'>('sequential');
   const [textVisualCount, setTextVisualCount] = useState(4);
+  const [photoshootCount, setPhotoshootCount] = useState<number>(4);
 
   // Selected Sections to Auto Generate
   const [selectedSections, setSelectedSections] = useState({
@@ -372,7 +373,7 @@ const [isGenerating, setIsGenerating] = useState(false);
         setCurrentStepText(t('جاري ابتكار أوامر الصور الاحترافية (Photoshoot)...'));
         try {
           const fullDesc = `${productName ? productName + ': ' : ''}${description}`;
-          const photoPrompts = await generateScenePrompts(fullDesc, autoModel);
+          const photoPrompts = await generateScenePrompts(fullDesc, photoshootCount, autoModel);
           newResults.photoshootPrompts = photoPrompts;
         } catch (e: any) {
           console.error("Photoshoot error:", e);
@@ -1410,6 +1411,47 @@ const [isGenerating, setIsGenerating] = useState(false);
                   placeholder="https://wa.me/201000000000 أو +201000000000"
                   className="w-full p-2.5 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none"
                 />
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Dynamic Fields for Photoshoot if Selected */}
+        {selectedSections.photoshoot && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="space-y-4 pt-6 border-t border-dashed border-amber-200 dark:border-amber-900/50 bg-amber-50/30 dark:bg-zinc-900/30 p-6 rounded-2xl"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[#B88006] dark:text-[#F0B21B] font-bold text-base">
+                <Camera className="w-5 h-5" />
+                {t("إعدادات أوامر الصور الاحترافية (Photoshoot)")}
+              </div>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-[#F0B21B]/15 text-[#B88006] dark:text-[#F0B21B] font-bold">
+                {photoshootCount === 1 ? t('صورة واحدة (الأسرع والأوفر)') : t(`${photoshootCount} صور`)}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                {t("عدد أوامر/مشاهد الصور المطلوبة")}
+              </label>
+              <div className="grid grid-cols-6 gap-2">
+                {[1, 2, 3, 4, 6, 8].map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => setPhotoshootCount(count)}
+                    className={`py-2 px-3 rounded-xl border-2 text-center transition-all font-bold text-xs cursor-pointer ${
+                      photoshootCount === count
+                        ? 'border-[#F0B21B] bg-[#F0B21B]/10 text-zinc-900 dark:text-[#F0B21B] shadow-sm'
+                        : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-[#F0B21B]/50 text-zinc-700 dark:text-zinc-300'
+                    }`}
+                  >
+                    {count}
+                  </button>
+                ))}
               </div>
             </div>
           </motion.div>

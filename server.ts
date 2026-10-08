@@ -17,6 +17,233 @@ const upload = multer({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Team Management Data Storage
+const TEAM_DATA_FILE = path.join(process.cwd(), 'data', 'team_members.json');
+
+function getTeamMembers(): any[] {
+  try {
+    const dir = path.dirname(TEAM_DATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    if (!fs.existsSync(TEAM_DATA_FILE)) {
+      const initial = [
+        {
+          id: 'admin_1',
+          name: 'المدير العام',
+          email: 'admin',
+          password: 'admin',
+          role: 'مدير الفريق (Admin)',
+          isAdmin: true,
+          createdAt: new Date().toISOString()
+        }
+      ];
+      fs.writeFileSync(TEAM_DATA_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+      return initial;
+    }
+    const data = fs.readFileSync(TEAM_DATA_FILE, 'utf-8');
+    return JSON.parse(data || '[]');
+  } catch (e) {
+    console.error('Error reading team data:', e);
+    return [];
+  }
+}
+
+function saveTeamMembers(members: any[]) {
+  try {
+    const dir = path.dirname(TEAM_DATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(TEAM_DATA_FILE, JSON.stringify(members, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Error saving team data:', e);
+  }
+}
+
+// 1. Team Login (No public signup - only pre-created team credentials)
+app.post('/api/team/login', (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'يرجى إدخال البريد الإلكتروني وكلمة المرور' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanPass = password.trim();
+    const members = getTeamMembers();
+
+    // Check if member exists
+    const member = members.find((m: any) => m.email.toLowerCase().trim() === cleanEmail);
+    if (!member) {
+      return res.status(401).json({ 
+        error: 'هذا الحساب غير مسجل في الفريق. يرجى التواصل مع مدير الفريق لإنشاء حسابك وتزويدك ببيانات الدخول.' 
+      });
+    }
+
+    if (member.password !== cleanPass) {
+      return res.status(401).json({ error: 'كلمة المرور غير صحيحة. يرجى التأكد من البيانات المستلمة من المدير.' });
+    }
+
+    return res.json({
+      success: true,
+      member: {
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        role: member.role || 'عضو فريق',
+        isAdmin: !!member.isAdmin || member.email.toLowerCase() === 'admin'
+      }
+    });
+  } catch (err: any) {
+    console.error('Team login error:', err);
+    return res.status(500).json({ error: 'حدث خطأ أثناء تسجيل الدخول' });
+  }
+});
+
+// 2. Get All Team Members (Admin)
+app.get('/api/team/members', (req, res) => {
+  try {
+    const members = getTeamMembers();
+    return res.json({ members });
+  } catch (err: any) {
+    console.error('Get team members error:', err);
+    return res.status(500).json({ error: 'فشل جلب بيانات الفريق' });
+  }
+});
+
+// 3. Create Team Member (Admin only)
+app.post('/api/team/members', (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'جميع الحقول مطلوبة (الاسم، البريد، كلمة المرور)' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const members = getTeamMembers();
+
+    if (members.some((m: any) => m.email.toLowerCase().trim() === cleanEmail)) {
+      return res.status(400).json({ error: 'هذا البريد الإلكتروني مسجل بالفعل لعضو آخر في الفريق' });
+    }
+
+    const newMember = {
+      id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: name.trim(),
+      email: cleanEmail,
+      password: password.trim(),
+      role: role?.trim() || 'عضو فريق عمل (Marketer)',
+      isAdmin: false,
+      createdAt: new Date().toISOString()
+    };
+
+    members.push(newMember);
+    saveTeamMembers(members);
+
+    return res.json({ success: true, member: newMember });
+  } catch (err: any) {
+    console.error('Add team member error:', err);
+    return res.status(500).json({ error: 'فشل إضافة عضو الفريق' });
+  }
+});
+
+// 4. Delete Team Member (Admin only)
+app.delete('/api/team/members/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    let members = getTeamMembers();
+    const target = members.find((m: any) => m.id === id);
+    if (!target) {
+      return res.status(404).json({ error: 'العضو غير موجود' });
+    }
+    if (target.isAdmin) {
+      return res.status(400).json({ error: 'لا يمكن حذف الحساب الإداري الرئيسي' });
+    }
+
+    members = members.filter((m: any) => m.id !== id);
+    saveTeamMembers(members);
+
+    return res.json({ success: true });
+  } catch (err: any) {
+    console.error('Delete team member error:', err);
+    return res.status(500).json({ error: 'فشل حذف عضو الفريق' });
+  }
+});
+
+// 4.5 Get Admin Credentials (System/Admin)
+app.get("/api/team/admin-credentials", (req, res) => {
+  try {
+    const members = getTeamMembers();
+    const admin = members.find((m: any) => m.isAdmin || m.id === "admin_1");
+    if (admin) {
+      return res.json({
+        id: "owner-admin-1",
+        name: admin.name || "المدير العام",
+        email: admin.email,
+        password: admin.password,
+        role: "admin",
+        isAdmin: true
+      });
+    }
+    return res.json({
+      id: "owner-admin-1",
+      name: "المدير العام",
+      email: "admin",
+      password: "admin",
+      role: "admin",
+      isAdmin: true
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "فشل جلب بيانات المدير" });
+  }
+});
+
+// 5. Update Admin Credentials (Admin only)
+app.post("/api/team/admin-credentials", (req, res) => {
+  try {
+    const { username, password, name } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: "اسم المستخدم وكلمة المرور مطلوبان" });
+    }
+    const cleanUser = username.trim().toLowerCase();
+    let members = getTeamMembers();
+    // Strictly purge any legacy admin and existing admin
+    members = members.filter((m: any) => m.email.toLowerCase() !== "admin" && !m.isAdmin && m.id !== "admin_1" && m.email.toLowerCase() !== cleanUser);
+    // Add the single authoritative admin
+    members.unshift({
+      id: "admin_1",
+      name: name || "المدير العام",
+      email: cleanUser,
+      password: password.trim(),
+      role: "مدير النظام (Admin)",
+      isAdmin: true,
+      createdAt: new Date().toISOString()
+    });
+    saveTeamMembers(members);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: "فشل تحديث بيانات المدير" });
+  }
+});
+
+// 6. Change Member Password (Admin only)
+app.post("/api/team/change-password", (req, res) => {
+  try {
+    const { memberId, newPassword } = req.body;
+    if (!memberId || !newPassword) {
+      return res.status(400).json({ error: "بيانات غير مكتملة" });
+    }
+    const members = getTeamMembers();
+    const target = members.find((m: any) => m.id === memberId);
+    if (!target) return res.status(404).json({ error: "العضو غير موجود" });
+    target.password = newPassword.trim();
+    saveTeamMembers(members);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: "فشل تحديث كلمة المرور" });
+  }
+});
+
 app.post('/api/adjust-audio-speed', async (req, res) => {
   try {
     const { audioData, speed } = req.body;

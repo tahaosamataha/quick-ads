@@ -5,13 +5,18 @@ import { buildBrandKitPrompt } from './utils/brandKit';
  */
 
 import React, { useState, createContext , useRef, useEffect } from 'react';
-import { Trash2, Bot, Radar, Star, Filter, ThumbsUp, ThumbsDown, Target, Lightbulb, Upload, Image as ImageIcon, Loader2, Download, AlertCircle, X, Globe, Type as TypeIcon, Camera, LayoutTemplate, Check, FileText, Copy, Moon, Sun, Wand2, Mic, Link as LinkIcon, LogIn, LogOut, Menu, Film, History, RefreshCw, Video, Zap, TrendingUp, MousePointer, ArrowRight, Play, ChevronDown, ChevronUp, Home, Folder, Box, BarChart2, Settings, Sparkles, Share2, Quote, Calculator, Brain, Clipboard, Palette, User as UserIcon } from 'lucide-react';
+import { Trash2, Bot, Radar, Star, Filter, ThumbsUp, ThumbsDown, Target, Lightbulb, Upload, Image as ImageIcon, Loader2, Download, AlertCircle, X, Globe, Type as TypeIcon, Camera, LayoutTemplate, Check, FileText, Copy, Moon, Sun, Wand2, Mic, Link as LinkIcon, LogIn, LogOut, Menu, Film, History, RefreshCw, Video, Zap, TrendingUp, MousePointer, ArrowRight, Play, ChevronDown, ChevronUp, Home, Folder, Box, BarChart2, Settings, Sparkles, Share2, Quote, Calculator, Brain, Clipboard, Palette, User as UserIcon, Users } from 'lucide-react';
 import { analyzeProduct, generateBackgroundImage, generateScenePrompts, LandingPageSection, analyzeAdCreatives, generateVideoScript, generateFbAdCopies, generateFunnelCopy, extractProductData, generateSpeech, generateVideoScenes, generateWinnerAngleScripts, extractWinnerVideoDetails, generateCreativeImagePrompts, generateTextOnVisual, generateSmartAngles, generateFlowCharacter } from './services/ai';
 import DownloadPage from './components/DownloadPage';
 import ExtractPage from './components/ExtractPage';
 import PricingCalculator from './components/PricingCalculator';
 import ProductBrainPage, { ProductBrainPageRef } from './components/ProductBrainPage';
 import MarketingLandingPage from './components/MarketingLandingPage';
+import { TeamLoginModal } from './components/TeamLoginModal';
+import { TeamManagementModal } from './components/TeamManagementModal';
+import { KwhLoginPage } from './components/KwhLoginPage';
+import { TeamMember, getActiveTeamSession, saveActiveTeamSession, DEFAULT_ADMIN_USERS } from './services/teamAuth';
+import { recordAiUsage } from './services/usageTracker';
 import LandingPageBuilder, { LandingPageBuilderRef } from './components/LandingPageBuilder';
 import { ProductSpy } from './components/ProductSpy';
 import { AutoSuite } from './components/AutoSuite';
@@ -30,7 +35,7 @@ import UtmBuilder from './components/UtmBuilder';
 import * as htmlToImage from 'html-to-image';
 import LZString from 'lz-string';
 import { auth, db, googleProvider } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, User } from 'firebase/auth';
 import { deductTokens, checkBalance, TOKEN_COSTS } from './services/billing';
 import { collection, addDoc, serverTimestamp, query, where, orderBy, getDocs, deleteDoc, doc, getDoc, setDoc, updateDoc, limit } from 'firebase/firestore';
 import { useLanguage } from './LanguageContext';
@@ -42,6 +47,9 @@ export const AppContext = createContext<any>(null);
 export default function App() {
   const { t, language, toggleLanguage } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
+  const [teamUser, setTeamUser] = useState<TeamMember | null>(() => getActiveTeamSession());
+  const [isTeamLoginOpen, setIsTeamLoginOpen] = useState(false);
+  const [isTeamManagementOpen, setIsTeamManagementOpen] = useState(false);
   const [guestMode, setGuestMode] = useState<boolean>(true);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -62,6 +70,11 @@ export default function App() {
   }
 
   const isToolAllowed = (toolId: string) => {
+    if (teamUser?.role === 'admin') return true;
+    if (teamUser?.permissions) {
+      if (['dashboard', 'history', 'settings', 'pricing', 'extractor', 'downloader', 'utmBuilder', 'productBrain', 'landingBuilder', 'smartAngles', 'flowCharacter', 'productSpy', 'autoSuite'].includes(toolId)) return true;
+      return teamUser.permissions.includes(toolId);
+    }
     if (!agencyMemberInfo) return true;
     if (['dashboard', 'history', 'settings', 'pricing', 'extractor', 'downloader', 'utmBuilder', 'productBrain', 'landingBuilder', 'smartAngles', 'flowCharacter', 'productSpy', 'autoSuite'].includes(toolId)) return true;
     if (agencyMemberInfo.permissions?.includes('all')) return true;
@@ -85,92 +98,66 @@ export default function App() {
       
       cleanupListeners();
 
-      if (currentUser) {
-         try {
-            const agencyTeamsRef = collection(db, 'agencyTeams');
-            const aq = query(agencyTeamsRef, where('email', '==', currentUser.email));
-            getDocs(aq).then((snap) => {
-               if (!snap.empty) {
-                  const teamData = { id: snap.docs[0].id, ...(snap.docs[0].data() as any) };
-                  setAgencyMemberInfo(teamData);
-                  
-                  // Fetch agency owner's balance
-                  if (teamData.agencyId) {
-                      const ownerRef = doc(db, 'users', teamData.agencyId);
-                      getDoc(ownerRef).then((ownerSnap) => {
-                          if (ownerSnap.exists()) {
-                              setAgencyOwnerProfile(ownerSnap.data());
-                          }
-                      }).catch((error) => {
-                          console.error('Agency owner sync error ignored on logout', error);
-                      });
-                  }
-               } else {
-                  setAgencyMemberInfo(null);
-                  setAgencyOwnerProfile(null);
-               }
-            }).catch((error) => {
-               if (!String(error).includes('Quota')) console.error('Agency team sync error ignored on logout', error);
-            });
-         } catch (e) {
-            if (!String(e).includes('Quota')) console.error("Error setting up team listener:", e);
-         }
-
-         const userRef = doc(db, 'users', currentUser.uid);
-         getDoc(userRef).then(snap => {
-            if (!snap.exists()) {
-                setDoc(userRef, {
-                   uid: currentUser.uid,
-                   email: currentUser.email || '',
-                   name: currentUser.displayName || '',
-                   role: (currentUser.email === 'elashory7@gmail.com' || currentUser.email === 'taha.mediabuyer@gmail.com') ? 'owner' : 'member',
-                   language: 'ar',
-                   plan: 'Free',
-                   tokens: 50,
-                   lastActiveAt: Date.now(),
-                   createdAt: new Date().toISOString()
-                }).catch(err => {
-                  if (!String(err).includes('Quota')) console.error("Error creating user profile", err);
-                });
-            } else {
-                const updates: any = {};
-                if ((currentUser.email === 'elashory7@gmail.com' || currentUser.email === 'taha.mediabuyer@gmail.com') && snap.data().role !== 'owner') {
-                   updates.role = 'owner';
-                }
-                if (Object.keys(updates).length > 0) {
-                   updateDoc(userRef, updates).catch(err => {
-                     if (!String(err).includes('Quota')) console.error("Error updating profile", err);
-                   });
-                }
-            }
-         }).catch(err => {
-            if (!String(err).includes('Quota')) console.error("Error fetching user profile", err);
-         });
-         
-         getDoc(userRef).then((snap) => {
-            if (snap.exists()) {
-               setUserProfile(snap.data());
-            }
-         }).catch((error) => {
-            if (!String(error).includes('Quota')) console.error('User profile fetch error', error);
-         });
-
-         const q = query(collection(db, 'brandKits'), where('userId', '==', currentUser.uid), where('isActive', '==', true));
-         getDocs(q).then(snap => {
-            if (!snap.empty) {
-               setActiveBrandKit(snap.docs[0].data());
-            } else {
-               setActiveBrandKit(null);
-            }
-         }).catch(err => {
-            if (!String(err).includes('Quota')) console.error(err);
-         });
-      } else {
-         setActiveBrandKit(null);
-         setUserProfile(null);
-         setAgencyMemberInfo(null);
-         setAgencyOwnerProfile(null);
+      if (!currentUser || currentUser.isAnonymous || !currentUser.email) {
+        setActiveBrandKit(null);
+        setUserProfile(null);
+        setAgencyMemberInfo(null);
+        setAgencyOwnerProfile(null);
+        return;
       }
+
+      try {
+        const agencyTeamsRef = collection(db, 'agencyTeams');
+        const aq = query(agencyTeamsRef, where('email', '==', currentUser.email));
+        getDocs(aq).then((snap) => {
+          if (!snap.empty) {
+            const teamData = { id: snap.docs[0].id, ...(snap.docs[0].data() as any) };
+            setAgencyMemberInfo(teamData);
+            
+            if (teamData.agencyId) {
+              const ownerRef = doc(db, 'users', teamData.agencyId);
+              getDoc(ownerRef).then((ownerSnap) => {
+                if (ownerSnap.exists()) {
+                  setAgencyOwnerProfile(ownerSnap.data());
+                }
+              }).catch(() => {});
+            }
+          } else {
+            setAgencyMemberInfo(null);
+            setAgencyOwnerProfile(null);
+          }
+        }).catch(() => {});
+      } catch (e) {
+        // Silently handled
+      }
+
+      const userRef = doc(db, 'users', currentUser.uid);
+      getDoc(userRef).then(snap => {
+        if (!snap.exists()) {
+          setDoc(userRef, {
+            uid: currentUser.uid,
+            email: currentUser.email || '',
+            name: currentUser.displayName || '',
+            role: 'member',
+            language: 'ar',
+            plan: 'Free',
+            tokens: 1000000,
+            lastActiveAt: Date.now(),
+            createdAt: new Date().toISOString()
+          }).catch(() => {});
+        } else {
+          setUserProfile(snap.data());
+        }
+      }).catch(() => {});
+      
+      const q = query(collection(db, 'brandKits'), where('userId', '==', currentUser.uid));
+      getDocs(q).then(snap => {
+        if (!snap.empty) {
+          setActiveBrandKit(snap.docs[0].data());
+        } else {
+          setActiveBrandKit(null);
+        }
+      }).catch(() => {});
     });
     
     return () => {
@@ -179,33 +166,10 @@ export default function App() {
     };
   }, []);
 
-  const handleLogin = async () => {
-    try {
-      setError(null);
-      await signInWithPopup(auth, googleProvider);
-    } catch (error: any) {
-      console.error("Login failed", error);
-      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request' || error.message?.includes('Pending promise')) {
-        // User closed the popup or overlapping requests, silently ignore instead of showing ugly error
-        return;
-      }
-      if (error.code === 'auth/invalid-credential' && error.message?.includes('invalid_client')) {
-        setError(`${t("فشل تسجيل الدخول:")} The Google Sign-In client secret in your Firebase Console is invalid. Please go to Firebase Console -> Authentication -> Sign-in method -> Google and verify the Web client secret.`);
-        return;
-      }
-      if (error.code === 'auth/unauthorized-domain') {
-        setError(`${t("فشل تسجيل الدخول:")} النطاق الحالي غير مصرح به. يرجى الذهاب إلى إعدادات Firebase (Authentication -> Settings -> Authorized domains) وإضافة النطاق التالي: ${window.location.hostname}`);
-        return;
-      }
-      if (error.code === 'auth/network-request-failed') {
-        setError(`${t("فشل تسجيل الدخول:")} حدث خطأ في الاتصال بالشبكة. يرجى التأكد من اتصالك بالإنترنت، وتعطيل إضافات حظر الإعلانات، أو تجربة فتح التطبيق في علامة تبويب جديدة.`);
-        return;
-      }
-      setError(`${t("فشل تسجيل الدخول:")} ${error.message || 'Unknown Error'}`);
-    }
+  const handleLogin = () => {
+    setIsTeamLoginOpen(true);
   };
 
-  
   const handleFeedback = async (itemId: string, status: 'success' | 'fail') => {
     if (!user) {
       setHistory(prev => prev.map(item => item.id === itemId ? { ...item, feedback: status } : item));
@@ -226,7 +190,9 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      saveActiveTeamSession(null);
+      setTeamUser(null);
+      await signOut(auth).catch(() => {});
       setGuestMode(true);
     } catch (error) {
       console.error("Logout failed", error);
@@ -304,6 +270,7 @@ export default function App() {
   const [generatedImages, setGeneratedImages] = useState<{ url: string; section: string }[]>([]);
   
   // Photoshoot State
+  const [photoshootCount, setPhotoshootCount] = useState<number>(1);
   const [isGeneratingPhotoshoot, setIsGeneratingPhotoshoot] = useState(false);
   const [photoshootProgress, setPhotoshootProgress] = useState<{ step: string; current: number; total: number }>({ step: '', current: 0, total: 0 });
   const [photoshootImages, setPhotoshootImages] = useState<{ url: string; prompt: string }[]>([]);
@@ -321,18 +288,14 @@ export default function App() {
 
   // Script State
   const [scriptDuration, setScriptDuration] = useState('15s');
-  const [scriptCount, setScriptCount] = useState<number>(5);
+  const [scriptCount, setScriptCount] = useState<number>(1);
   const [scriptGenMode, setScriptGenMode] = useState<'auto' | 'manual' | 'custom'>('manual');
   const [customScriptText, setCustomScriptText] = useState('');
   const [customScriptVoice, setCustomScriptVoice] = useState('auto');
   const [customScriptStyle, setCustomScriptStyle] = useState('');
   const [isSampleLoading, setIsSampleLoading] = useState(false);
   const [selectedScriptTypes, setSelectedScriptTypes] = useState<string[]>([
-    'UGC (محتوى عفوي وتجربة مستخدم)',
-    'Direct Response (استجابة مباشرة وعرض قوي)',
-    'Storytelling (قصة قصيرة تجذب الانتباه)',
-    'Problem/Solution (عرض المشكلة وتقديم المنتج كحل)',
-    'Educational/How-to (تعليمي / كيف تستخدم المنتج)'
+    'UGC (محتوى عفوي وتجربة مستخدم)'
   ]);
   const [selectedScriptGenders, setSelectedScriptGenders] = useState<string[]>(Array(10).fill('auto'));
 
@@ -383,12 +346,9 @@ export default function App() {
   const [fbAdCopied, setFbAdCopied] = useState<number | null>(null);
   const [autoFbAngles, setAutoFbAngles] = useState(false);
   const [fbCampaignObjective, setFbCampaignObjective] = useState<string>('زيادة المبيعات (Sales)');
+  const [fbAdCount, setFbAdCount] = useState<number>(1);
   const [selectedFbAdTypes, setSelectedFbAdTypes] = useState<string[]>([
-    'القصة القصيرة والمشاعر (Storytelling & Emotion)',
-    'العرض المباشر (Direct Offer)',
-    'المشكلة والحل (Problem & Solution)',
-    'الشهادات والتقييمات (Testimonial & Social Proof)',
-    'الخوف من التفويت (FOMO & Urgency)'
+    'العرض المباشر (Direct Offer)'
   ]);
 
   // Funnel Copy State
@@ -436,7 +396,7 @@ export default function App() {
 
   const [voiceCloneFile, setVoiceCloneFile] = useState<{base64: string, mimeType: string, filename: string} | null>(() => {
     try {
-      const saved = localStorage.getItem('elashory_voice_clone');
+      const saved = localStorage.getItem('quickads_voice_clone');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -459,7 +419,7 @@ export default function App() {
       const cloneData = { base64, mimeType: file.type, filename: file.name };
       setVoiceCloneFile(cloneData);
       try {
-        localStorage.setItem('elashory_voice_clone', JSON.stringify(cloneData));
+        localStorage.setItem('quickads_voice_clone', JSON.stringify(cloneData));
       } catch (err) {
         console.warn("Could not save voice clone to localStorage (quota exceeded). It will be kept in memory only.");
       }
@@ -469,7 +429,7 @@ export default function App() {
 
   const removeVoiceClone = () => {
     setVoiceCloneFile(null);
-    localStorage.removeItem('elashory_voice_clone');
+    localStorage.removeItem('quickads_voice_clone');
   };
 
   // History State
@@ -481,47 +441,62 @@ export default function App() {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      try {
-        const localHist = JSON.parse(localStorage.getItem('quickads_guest_history') || '[]');
-        setHistory(localHist);
-      } catch (e) {
-        setHistory([]);
-      }
+    if (!teamUser && !user) {
+      setHistory([]);
       setIsHistoryLoading(false);
       return;
     }
+
     setIsHistoryLoading(true);
+    const historyCol = collection(db, 'history');
+    const isAdmin = teamUser?.role === 'admin' || userProfile?.role === 'owner' || userProfile?.role === 'admin';
+
+    // If Admin: fetch all history items across the team
+    // If Member: strictly fetch only their own history items
     let q;
-    if (agencyMemberInfo) {
-      // Fetch agency's history
-      q = query(
-        collection(db, 'history'),
-        where('agencyId', '==', agencyMemberInfo.agencyId),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
+    if (isAdmin) {
+      q = query(historyCol, orderBy('createdAt', 'desc'), limit(100));
+    } else if (teamUser) {
+      q = query(historyCol, where('memberEmail', '==', teamUser.email), limit(50));
     } else {
-      q = query(
-        collection(db, 'history'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
+      q = query(historyCol, where('userId', '==', user?.uid), limit(50));
     }
-    
+
     getDocs(q).then((querySnapshot) => {
-      const historyData = querySnapshot.docs.map(doc => ({
+      let historyData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+
+      // Extra client-side privacy guard: regular members never see other users projects
+      if (!isAdmin && teamUser) {
+        historyData = historyData.filter((item: any) => 
+          item.memberEmail === teamUser.email || 
+          item.userId === teamUser.id || 
+          item.memberId === teamUser.id
+        );
+      }
+
       setHistory(historyData);
       setIsHistoryLoading(false);
-    }).catch((error) => {
-      if (!String(error).includes('Quota')) console.error("Error fetching history:", error);
-      setIsHistoryLoading(false);
+    }).catch(() => {
+      // Fallback query if index is building
+      getDocs(query(historyCol, limit(100))).then((snap) => {
+        let allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (!isAdmin && teamUser) {
+          allDocs = allDocs.filter((item: any) => 
+            item.memberEmail === teamUser.email || 
+            item.userId === teamUser.id || 
+            item.memberId === teamUser.id
+          );
+        }
+        setHistory(allDocs);
+        setIsHistoryLoading(false);
+      }).catch(() => {
+        setIsHistoryLoading(false);
+      });
     });
-  }, [user, agencyMemberInfo]);
+  }, [teamUser, user, agencyMemberInfo]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -563,18 +538,29 @@ export default function App() {
 
   const saveToHistory = async (type: string, content: any, productDescription: string) => {
     try {
-      // Strip circular structures to prevent Firebase addDoc from failing
       const safeContent = removeCircular(content);
       
       const newDoc = {
-        id: 'guest_' + Date.now(),
-        userId: user ? String(user.uid) : 'guest_user',
+        id: 'hist_' + Date.now(),
+        userId: teamUser ? String(teamUser.id) : (user ? String(user.uid) : 'team_user'),
+        memberId: teamUser ? String(teamUser.id) : 'admin',
+        memberName: teamUser ? String(teamUser.name) : 'المدير العام',
+        memberEmail: teamUser ? String(teamUser.email) : 'admin',
+        memberRole: teamUser ? String(teamUser.role) : 'admin',
         agencyId: agencyMemberInfo?.agencyId ? String(agencyMemberInfo.agencyId) : null,
         type: String(type),
         content: safeContent,
         description: String(productDescription || ''),
         createdAt: new Date().toISOString()
       };
+
+      // Track AI model usage for member activity logs
+      recordAiUsage({
+        member: teamUser,
+        tool: type,
+        model: type === 'productBrain' ? 'gemini-2.5-pro' : (type.includes('photo') ? 'imagen-3.0' : 'gemini-2.5-flash'),
+        tokens: type === 'productBrain' ? 1500 : 700
+      }).catch(() => {});
 
       if (!user) {
         try {
@@ -829,8 +815,22 @@ export default function App() {
     'المقارنة "نحن مقابل هم" (Us vs. Them)',
     'النتيجة المحددة (Hyper-Specific Result)',
     'الاعتراف الصريح (The Confession / Transparency)',
-    'القائمة السريعة (Listicle / X Reasons Why)'
   ];
+
+  const handleFbAdCountChange = (count: number) => {
+    setFbAdCount(count);
+    setSelectedFbAdTypes(prev => {
+      const newTypes = [...prev];
+      if (count > prev.length) {
+        for (let i = prev.length; i < count; i++) {
+          newTypes.push(fbAdTypesList[i % fbAdTypesList.length]);
+        }
+      } else if (count < prev.length) {
+        newTypes.length = count;
+      }
+      return newTypes;
+    });
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const renderContainerRef = useRef<HTMLDivElement>(null);
@@ -1054,10 +1054,15 @@ export default function App() {
       
       await checkBalance(TOKEN_COSTS.SCRIPT);
 
-      const mappedScriptTypes = selectedScriptTypes.map((type, index) => ({
-        type, 
-        gender: selectedScriptGenders[index] || 'auto'
-      }));
+      const mappedScriptTypes = scriptGenMode === 'auto'
+        ? Array.from({ length: scriptCount }).map((_, idx) => ({
+            type: `زاوية إعلانية مبتكرة #${idx + 1}`,
+            gender: selectedScriptGenders[idx] || voiceGender || 'auto'
+          }))
+        : selectedScriptTypes.slice(0, scriptCount).map((type, index) => ({
+            type, 
+            gender: selectedScriptGenders[index] || 'auto'
+          }));
 
       
     let finalDescription = description || "المنتج غير محدد";
@@ -1193,8 +1198,10 @@ export default function App() {
 
     try {
       if (controller.signal.aborted) return;
-      await checkBalance(TOKEN_COSTS.TEXT);
-      const ads = await generateFbAdCopies(description, dialect, aiModel, selectedFbAdTypes, 3, 3000, activeBrandKit && applyBrandKit ? activeBrandKit : undefined, autoFbAngles, fbCampaignObjective);
+      const typesToPass = autoFbAngles
+        ? Array.from({ length: fbAdCount }).map((_, idx) => `زاوية إعلانية #${idx + 1}`)
+        : selectedFbAdTypes.slice(0, fbAdCount);
+      const ads = await generateFbAdCopies(description, dialect, aiModel, typesToPass, 3, 3000, activeBrandKit && applyBrandKit ? activeBrandKit : undefined, autoFbAngles, fbCampaignObjective);
       await deductTokens(TOKEN_COSTS.TEXT, 'Creative Ads', extractUrl, productName);
       
       if (controller.signal.aborted) return;
@@ -1665,7 +1672,7 @@ const scenes = await generateVideoScenes(finalDescription, dialect, videoGenerat
 
       if (controller.signal.aborted) return;
       await checkBalance(TOKEN_COSTS.IMAGE);
-      const prompts = await generateScenePrompts(description, aiModel);
+      const prompts = await generateScenePrompts(description, photoshootCount, aiModel);
       await deductTokens(TOKEN_COSTS.IMAGE, 'Photoshoot AI', extractUrl, productName);
       const results: {url: string, prompt: string}[] = [];
 
@@ -1861,17 +1868,9 @@ const scenes = await generateVideoScenes(finalDescription, dialect, videoGenerat
     });
   };
 
-  
-  if (isAuthLoading && !guestMode) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F7F9FC] dark:bg-[#0F172A]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#09090b]" />
-      </div>
-    );
-  }
-
-  if (!user && !guestMode && !sharedProject) {
-    return <MarketingLandingPage onLogin={handleLogin} onContinueAsGuest={() => setGuestMode(true)} />;
+  // Gatekeeper: Strict team login required. No user without username & password can enter
+  if (!teamUser) {
+    return <KwhLoginPage onLoginSuccess={(member) => setTeamUser(member)} />;
   }
 
   if (sharedProject) {
@@ -2354,108 +2353,84 @@ ${script.angle}`}
 
         <div className="shrink-0 p-4 border-t border-zinc-200 dark:border-zinc-800">
 
-           {/* Tokens Block */}
-           {(userProfile || agencyOwnerProfile || guestMode) && (
-           <div className="mt-4 bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200 dark:border-zinc-800 shadow-sm relative">
-             <h4 className="font-bold text-[#111827] dark:text-white mb-3 text-sm flex justify-between items-center">
-               <span>{agencyMemberInfo ? t("Agency Balance") : t("Tokens")}</span>
-               <Zap className="w-4 h-4 text-[#F0B21B]" />
-             </h4>
-             
-             {agencyMemberInfo ? (
-               <>
-                 <div className="flex flex-col gap-3">
-                   {/* Shared Agency Balance First */}
-                   <div className="space-y-1">
-                      <div className="text-[10px] uppercase font-bold text-zinc-400">{t("Shared Balance")}</div>
-                      <div className="text-lg font-black text-[#F0B21B] dark:text-[#F0B21B]">
-                         {(agencyOwnerProfile?.tokens || 0).toLocaleString()} <span className="text-xs text-zinc-500 font-medium">توكينز</span>
-                      </div>
-                   </div>
+            {/* Team Account Widget */}
+            <div className="mt-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm relative">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-xl bg-[#F0B21B] text-[#09090b] flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                  {teamUser ? teamUser.name[0] : (user?.displayName?.[0] || 'T')}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">
+                    {teamUser ? teamUser.name : (user?.displayName || 'عضو الفريق')}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono truncate">
+                    {teamUser ? teamUser.email : (user?.email || 'حساب مفعل')}
+                  </div>
+                </div>
+              </div>
 
-                   {/* Member's Usage Limit if applicable */}
-                   {agencyMemberInfo.tokenLimit > 0 && (
-                     <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                        <div className="flex justify-between items-center mb-1.5">
-                           <span className="text-[10px] uppercase font-bold text-zinc-400">{t("Personal Limit")}</span>
-                           <span className="text-[10px] font-bold text-zinc-500">{Math.round((agencyMemberInfo.tokensUsed / agencyMemberInfo.tokenLimit) * 100)}%</span>
-                        </div>
-                        <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5 mb-2 overflow-hidden">
-                          <div 
-                            className="bg-[#09090b] h-full rounded-full transition-all duration-1000 ease-in-out" 
-                            style={{ width: `${Math.min(100, Math.max(0, (agencyMemberInfo.tokensUsed / agencyMemberInfo.tokenLimit) * 100))}%` }}
-                          ></div>
-                        </div>
-                        <div className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 flex items-center justify-between">
-                          <span>{(agencyMemberInfo.tokenLimit - agencyMemberInfo.tokensUsed).toLocaleString()} {t("Remaining")}</span>
-                          <span>{agencyMemberInfo.tokenLimit.toLocaleString()}</span>
-                        </div>
-                     </div>
-                   )}
-                 </div>
-               </>
-             ) : (
-               <>
-                 <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-2 mb-2 overflow-hidden">
-                   <div 
-                     className="bg-[#F0B21B] h-full rounded-full transition-all duration-1000 ease-in-out" 
-                     style={{ width: `${Math.min(100, Math.max(0, (((userProfile || guestProfile)?.tokens || 0) / ((userProfile || guestProfile)?.plan === 'Team' ? 12000 : (userProfile || guestProfile)?.plan === 'Pro' ? 3000 : 100)) * 100))}%` }}
-                   ></div>
-                 </div>
-                 <div className="text-sm font-bold text-[#111827] dark:text-white flex items-center justify-between">
-                   <span>{((userProfile || guestProfile)?.tokens || 0).toLocaleString()}</span>
-                   <span className="text-zinc-400 font-medium text-xs">
-                     {(userProfile || guestProfile)?.plan === 'Team' ? '12,000' : (userProfile || guestProfile)?.plan === 'Pro' ? '3,000' : '100'} MAX
-                   </span>
-                 </div>
-               </>
-             )}
-           </div>
-           )}
-        </div>
+              <div className="flex items-center justify-between pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-xs">
+                <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                  (teamUser?.role === 'admin' || userProfile?.role === 'owner' || userProfile?.role === 'admin')
+                    ? 'bg-amber-500/15 text-[#B88006] dark:text-[#F0B21B]'
+                    : 'bg-blue-500/15 text-blue-500'
+                }`}>
+                  {(teamUser?.role === 'admin' || userProfile?.role === 'owner' || userProfile?.role === 'admin') ? '👑 مدير النظام' : '👤 عضو الفريق'}
+                </span>
+
+                {(teamUser?.role === 'admin' || userProfile?.role === 'owner' || userProfile?.role === 'admin') && (
+                  <button
+                    onClick={() => setIsTeamManagementOpen(true)}
+                    className="text-[11px] text-[#B88006] dark:text-[#F0B21B] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Users className="w-3 h-3" />
+                    <span>إدارة الفريق</span>
+                  </button>
+                )}
+              </div>
+            </div>
+         </div>
 
         <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
           <div className="lg:hidden">
-            {user ? (
+            {teamUser || user ? (
               <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl">
                 <div className="flex items-center gap-3 overflow-hidden">
-                  {user.photoURL ? (
-                    <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full shrink-0" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-fuchsia-100 dark:bg-fuchsia-900/30 text-[#F0B21B] dark:text-[#F0B21B] flex items-center justify-center shrink-0 font-bold">
-                      {user.email?.[0].toUpperCase()}
-                    </div>
-                  )}
+                  <div className="w-8 h-8 rounded-full bg-[#F0B21B] text-[#09090b] flex items-center justify-center shrink-0 font-bold text-xs">
+                    {teamUser ? teamUser.name[0] : (user?.displayName?.[0] || 'U')}
+                  </div>
                   <div className="truncate">
-                    <div className="text-sm font-medium text-zinc-900 dark:text-white truncate">{user.displayName || 'مستخدم'}</div>
-                    <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user.email}</div>
+                    <div className="text-sm font-medium text-zinc-900 dark:text-white truncate">
+                      {teamUser ? teamUser.name : (user?.displayName || 'عضو الفريق')}
+                    </div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                      {teamUser ? teamUser.email : user?.email}
+                    </div>
                   </div>
                 </div>
-                <button onClick={handleLogout} className="p-2 text-zinc-400 hover:text-[#F0B21B] transition-colors" title={t("تسجيل الخروج")}>
-                  <LogOut className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {(teamUser?.role === 'admin' || userProfile?.role === 'owner' || userProfile?.role === 'admin') && (
+                    <button
+                      onClick={() => setIsTeamManagementOpen(true)}
+                      className="p-1.5 text-[#B88006] dark:text-[#F0B21B] hover:bg-[#F0B21B]/15 rounded-lg"
+                      title="إدارة الفريق"
+                    >
+                      <Users className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button onClick={handleLogout} className="p-2 text-zinc-400 hover:text-red-500 transition-colors" title={t("تسجيل الخروج")}>
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between bg-[#F0B21B]/15 border border-[#F0B21B]/30 p-2.5 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-[#F0B21B] text-[#09090b] flex items-center justify-center text-xs font-black">
-                      ✓
-                    </div>
-                    <div className="text-xs">
-                      <span className="font-bold text-amber-800 dark:text-[#F0B21B] block">{t("وضع الضيف (مفتوح)")}</span>
-                      <span className="text-amber-700/80 dark:text-[#F0B21B]/80">{t("جميع الأدوات متاحة")}</span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogin}
-                  className="w-full py-2.5 px-3 bg-[#09090b] hover:bg-[#18181b] shadow-sm text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-xs"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  {t("تسجيل الدخول بحساب Google")}
-                </button>
-              </div>
+              <button
+                onClick={() => setIsTeamLoginOpen(true)}
+                className="w-full py-2.5 px-3 bg-[#F0B21B] hover:bg-[#d99e12] text-[#09090b] font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>تسجيل دخول الفريق</span>
+              </button>
             )}
           </div>
           
@@ -2509,42 +2484,49 @@ ${script.angle}`}
 
               <div className="h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1"></div>
 
-              {user ? (
-                <div className="flex items-center gap-3 bg-[#09090b]/5 dark:bg-white/10 px-3 py-1.5 rounded-xl shadow-sm border border-[#09090b]/10 dark:border-white/20 backdrop-blur-md">
+              {teamUser || user ? (
+                <div className="flex items-center gap-2.5 bg-zinc-100 dark:bg-white/10 px-3 py-1.5 rounded-xl shadow-sm border border-zinc-200 dark:border-white/10 backdrop-blur-md">
                   <div className="flex items-center gap-2">
-
-                    {user.photoURL && (
-                      <img src={user.photoURL} alt="Profile" className="w-6 h-6 rounded-full ring-2 ring-[#09090b]/20 dark:ring-white/50" referrerPolicy="no-referrer" />
-                    )}
-                    
-   <div className="flex flex-col items-start gap-0.5 max-w-[100px] truncate">
-       <span className="text-sm font-medium text-[#09090b] dark:text-white truncate w-full">{user.displayName?.split(' ')[0] || 'مستخدم'}</span>
-       {(userProfile || agencyOwnerProfile) && (
-           <span className="text-xs font-bold text-[#F0B21B] dark:text-[#F0B21B] flex items-center gap-1">
-              <Zap className="w-3 h-3" /> {(agencyOwnerProfile ? agencyOwnerProfile.tokens : (userProfile?.tokens ?? 0))} توكينز
-           </span>
-       )}
-   </div>
-  
+                    <div className="w-7 h-7 rounded-full bg-[#F0B21B] text-[#09090b] flex items-center justify-center font-black text-xs shrink-0">
+                      {teamUser ? teamUser.name[0] : (user?.displayName?.[0] || 'U')}
+                    </div>
+                    <div className="flex flex-col items-start leading-tight max-w-[120px] truncate">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-white truncate w-full">
+                        {teamUser ? teamUser.name : (user?.displayName?.split(' ')[0] || 'عضو الفريق')}
+                      </span>
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                        {(teamUser?.role === 'admin' || userProfile?.role === 'owner' || userProfile?.role === 'admin') ? '👑 مدير النظام' : '👤 عضو الفريق'}
+                      </span>
+                    </div>
                   </div>
-                  <button onClick={handleLogout} className="p-1.5 text-[#09090b]/50 dark:text-white/70 hover:text-[#09090b] dark:hover:text-white hover:bg-[#09090b]/10 dark:hover:bg-white/10 transition-colors rounded-lg" title={t("تسجيل الخروج")}>
+
+                  {(teamUser?.role === 'admin' || userProfile?.role === 'owner' || userProfile?.role === 'admin') && (
+                    <button
+                      onClick={() => setIsTeamManagementOpen(true)}
+                      className="px-2.5 py-1 bg-[#F0B21B]/20 hover:bg-[#F0B21B]/30 text-[#09090b] dark:text-[#F0B21B] border border-[#F0B21B]/30 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                      title="إنشاء وإدارة حسابات الفريق"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span className="hidden xl:inline">إدارة الفريق</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleLogout}
+                    className="p-1.5 text-zinc-400 hover:text-red-500 transition-colors rounded-lg"
+                    title={t("تسجيل الخروج")}
+                  >
                     <LogOut className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#F0B21B]/15 text-amber-800 dark:text-[#F0B21B] rounded-xl border border-[#F0B21B]/30 text-xs font-bold">
-                    <span className="w-2 h-2 rounded-full bg-[#F0B21B] animate-pulse"></span>
-                    <span>{t("دخول مباشر (ضيف)")}</span>
-                    <span className="opacity-75">| 9,999 توكينز</span>
-                  </div>
                   <button
-                    onClick={handleLogin}
-                    className="px-3.5 py-1.5 bg-[#09090b] hover:bg-[#18181b] shadow-sm text-white rounded-xl font-bold transition-colors text-xs sm:text-sm flex items-center gap-1.5"
-                    title={t("ربط حساب Google")}
+                    onClick={() => setIsTeamLoginOpen(true)}
+                    className="px-3.5 py-1.5 bg-[#F0B21B] hover:bg-[#d99e12] shadow-sm text-[#09090b] rounded-xl font-bold transition-colors text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer"
                   >
                     <LogIn className="w-3.5 h-3.5" />
-                    <span>{t("تسجيل الدخول")}</span>
+                    <span>تسجيل دخول الفريق</span>
                   </button>
                 </div>
               )}
@@ -2655,7 +2637,7 @@ ${script.angle}`}
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                     <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{t("سجل المحفوظات")}</h2>
                     
-                    {user && history.length > 0 && (
+                    {(user || teamUser) && history.length > 0 && (
                       <div className="flex flex-wrap items-center gap-2">
                         <select
                           value={historyFilter}
@@ -2700,16 +2682,16 @@ ${script.angle}`}
                     )}
                   </div>
 
-                  {!user ? (
+                  {!user && !teamUser ? (
                     <div className="h-full flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 py-32">
                       <History className="w-16 h-16 mb-4 opacity-50" />
                       <p className="mb-4">{t("يرجى تسجيل الدخول لعرض سجل المحفوظات")}</p>
                       <button
                         onClick={handleLogin}
-                        className="py-2 px-6 bg-gradient-to-r from-black to-zinc-900 hover:from-zinc-900 hover:to-black shadow-lg shadow-amber-500/20/30 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                        className="py-2.5 px-6 bg-[#F0B21B] hover:bg-[#d99e12] shadow-sm text-[#09090b] rounded-xl font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <LogIn className="w-4 h-4" />
-                        {t("تسجيل الدخول")}
+                        <span>تسجيل دخول الفريق</span>
                       </button>
                     </div>
                   ) : isHistoryLoading ? (
@@ -2755,9 +2737,16 @@ ${script.angle}`}
                                   {item.type === 'smartAngles' && 'زوايا إعلانية ذكية'}
                                   {item.type === 'flowCharacter' && 'إنشاء شخصية في Flow'}
                                 </h3>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                                  {item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleString('ar-EG') : 'تاريخ غير معروف'}
-                                </p>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                    {item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleString('ar-EG') : (item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : 'تاريخ غير معروف')}
+                                  </p>
+                                  {(teamUser?.role === 'admin' || userProfile?.role === 'owner') && (item.memberName || item.memberEmail) && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#482878]/20 text-purple-300 border border-[#482878]/40">
+                                      👤 تم الإنشاء بواسطة: {item.memberName || item.memberEmail}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                                                         <div className="flex items-center gap-2">
@@ -3879,13 +3868,25 @@ ${script.angle}` : script.content}
 
                           {scriptGenMode !== 'custom' && (
                             <>
-                              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("عدد السكريبتات")}</label>
-                              <div className="grid grid-cols-4 gap-2">
-                                {[3, 5, 7, 10].map((count) => (
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                  {autoGenerateVoiceover ? t("عدد الإسكريبتات والفويس أوفر") : t("عدد الإسكريبتات")}
+                                </label>
+                                <span className="text-xs px-2.5 py-1 rounded-full bg-[#F0B21B]/15 text-[#B88006] dark:text-[#F0B21B] font-bold">
+                                  {scriptCount === 1 ? (autoGenerateVoiceover ? t('فويس أوفر واحد فقط (سريع)') : t('إسكريبت واحد فقط')) : t(`${scriptCount} إسكريبتات`)}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                                {[1, 2, 3, 4, 5, 7, 10].map((count) => (
                                   <button
                                     key={count}
+                                    type="button"
                                     onClick={() => handleScriptCountChange(count)}
-                                    className={`py-2 rounded-xl border-2 text-center transition-all font-medium ${scriptCount === count ? 'border-[#F0B21B] bg-amber-50 dark:bg-zinc-900 text-fuchsia-700 dark:bg-[#F0B21B]/10 dark:text-fuchsia-300 shadow-[0_0_15px_rgba(217,70,239,0.15)]' : 'border-zinc-200 dark:border-zinc-700 hover:border-fuchsia-300 dark:hover:border-fuchsia-700 text-zinc-600 dark:text-zinc-400'}`}
+                                    className={`py-2 rounded-xl border-2 text-center transition-all font-bold text-sm cursor-pointer ${
+                                      scriptCount === count 
+                                        ? 'border-[#F0B21B] bg-[#F0B21B]/10 text-zinc-900 dark:text-[#F0B21B] shadow-sm scale-[1.02]' 
+                                        : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-[#F0B21B]/50 text-zinc-600 dark:text-zinc-400'
+                                    }`}
                                   >
                                     {count}
                                   </button>
@@ -3897,7 +3898,9 @@ ${script.angle}` : script.content}
 
                         {scriptGenMode === 'manual' ? (
                           <div>
-                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("أنواع السكريبتات (اختر")}{scriptCount})</label>
+                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                              {t("أنواع السكريبتات")} ({scriptCount === 1 ? t("اختر نوع واحد") : `${t("اختر")} ${scriptCount} ${t("أنواع")}`})
+                            </label>
                             <div className="space-y-3">
                               {Array.from({ length: scriptCount }).map((_, index) => (
                                 <div key={index} className="flex gap-2">
@@ -3929,8 +3932,9 @@ ${script.angle}` : script.content}
                           </div>
                         ) : scriptGenMode === 'auto' ? (
                           <div className="bg-amber-50 dark:bg-zinc-900 dark:bg-fuchsia-900/10 border border-fuchsia-100 dark:border-fuchsia-800/30 p-5 rounded-xl text-sm leading-relaxed mt-4">
-                            <p className="text-zinc-800 dark:text-zinc-200 font-medium mb-2">{t("أتمتة كاملة بصلاحيات ماركتير محترف (20 سنة خبرة)")}</p>
-                            <p className="text-zinc-600 dark:text-zinc-400">{t("سيقوم الذكاء الاصطناعي بتجاهل القوالب التقليدية وتوليد")} {scriptCount} {t("إسكريبتات زوايا إعلانية مبتكرة وقوية جداً بناءً على منتجك لتحقيق أعلى تحويل.")}</p>
+                            <p className="text-zinc-600 dark:text-zinc-400">
+                              {t("سيقوم الذكاء الاصطناعي بتجاهل القوالب التقليدية وتوليد")} {scriptCount === 1 ? t("إسكريبت وزاوية إعلانية واحدة مخصصة وقوية جداً") : `${scriptCount} ${t("إسكريبتات زوايا إعلانية مبتكرة وقوية جداً")}`} {t("بناءً على منتجك لتحقيق أعلى تحويل.")}
+                            </p>
                           </div>
                         ) : (
                           <div className="mt-4 p-4 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800">
@@ -4063,6 +4067,33 @@ ${script.angle}` : script.content}
                           </select>
                         </div>
 
+                        <div className="mb-6">
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                              {t("عدد نسخ الإعلانات")}
+                            </label>
+                            <span className="text-xs px-2.5 py-1 rounded-full bg-[#F0B21B]/15 text-[#B88006] dark:text-[#F0B21B] font-bold">
+                              {fbAdCount === 1 ? t('إعلان واحد فقط') : t(`${fbAdCount} إعلانات`)}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                            {[1, 2, 3, 4, 5, 7, 10].map((count) => (
+                              <button
+                                key={count}
+                                type="button"
+                                onClick={() => handleFbAdCountChange(count)}
+                                className={`py-2 rounded-xl border-2 text-center transition-all font-bold text-sm cursor-pointer ${
+                                  fbAdCount === count 
+                                    ? 'border-[#F0B21B] bg-[#F0B21B]/10 text-zinc-900 dark:text-[#F0B21B] shadow-sm scale-[1.02]' 
+                                    : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-[#F0B21B]/50 text-zinc-600 dark:text-zinc-400'
+                                }`}
+                              >
+                                {count}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
                         <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">{t("طريقة توليد الإعلانات")}</label>
                         
                         <div className="flex bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-xl mb-6">
@@ -4083,8 +4114,10 @@ ${script.angle}` : script.content}
 
                         {!autoFbAngles ? (
                           <div className="space-y-3">
-                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{t("أنواع إعلانات الفيسبوك (اختر 5 انواع)")}</label>
-                            {Array.from({ length: 5 }).map((_, index) => (
+                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                              {t("أنواع إعلانات الفيسبوك")} ({fbAdCount === 1 ? t("اختر نوع واحد") : `${t("اختر")} ${fbAdCount} ${t("أنواع")}`})
+                            </label>
+                            {Array.from({ length: fbAdCount }).map((_, index) => (
                               <div key={index} className="flex gap-2">
                                 <select 
                                   value={selectedFbAdTypes[index] || fbAdTypesList[0]}
@@ -4105,7 +4138,9 @@ ${script.angle}` : script.content}
                         ) : (
                           <div className="bg-amber-50 dark:bg-zinc-900 dark:bg-fuchsia-900/10 border border-fuchsia-100 dark:border-fuchsia-800/30 p-5 rounded-xl text-sm leading-relaxed">
                             <p className="text-zinc-800 dark:text-zinc-200 font-medium mb-2">{t("أتمتة كاملة بصلاحيات ماركتير محترف (20 سنة خبرة)")}</p>
-                            <p className="text-zinc-600 dark:text-zinc-400">{t("سيقوم الذكاء الاصطناعي بتجاهل القوالب التقليدية المملة واستخراج 5 زوايا إعلانية مبتكرة وقوية جداً بناءً على منتجك لتحقيق أعلى تحويل (Conversion).")}</p>
+                            <p className="text-zinc-600 dark:text-zinc-400">
+                              {t("سيقوم الذكاء الاصطناعي بتجاهل القوالب التقليدية المملة واستخراج")} {fbAdCount === 1 ? t("زاوية إعلانية واحدة مبتكرة وقوية") : `${fbAdCount} ${t("زوايا إعلانية مبتكرة وقوية جداً")}`} {t("بناءً على منتجك لتحقيق أعلى تحويل (Conversion).")}
+                            </p>
                           </div>
                         )}
                       </div>
@@ -4125,6 +4160,41 @@ ${script.angle}` : script.content}
                       <span className="font-medium block text-fuchsia-900 dark:text-[#F0B21B]">{t("توليد خلفيات بالذكاء الاصطناعي (ميزة متقدمة)")}</span>
                       <span className="text-xs text-zinc-500 dark:text-zinc-400">{t("يضع المنتج في بيئات مختلفة. قد يستغرق وقتاً أطول ويتطلب باقة مدفوعة لتجنب حدود الاستخدام.")}</span>
                     </label>
+                  </div>
+                )}
+
+                {activeTab === 'photoshoot' && (
+                  <div className="space-y-4 p-5 bg-zinc-50 dark:bg-zinc-800/60 rounded-2xl border border-zinc-200 dark:border-zinc-700/80">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        <Camera className="w-4 h-4 text-[#F0B21B]" />
+                        {t("عدد المشاهد/الصور المطلوب توليدها")}
+                      </label>
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-[#F0B21B]/15 text-[#B88006] dark:text-[#F0B21B] font-bold">
+                        {photoshootCount === 1 ? t('صورة واحدة (الأسرع والأوفر ⚡)') : t(`${photoshootCount} صور`)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-6 gap-2">
+                      {[1, 2, 3, 4, 6, 8].map((count) => (
+                        <button
+                          key={count}
+                          type="button"
+                          onClick={() => setPhotoshootCount(count)}
+                          className={`py-2.5 px-3 rounded-xl border-2 text-center transition-all font-bold text-sm cursor-pointer ${
+                            photoshootCount === count
+                              ? 'border-[#F0B21B] bg-[#F0B21B]/10 text-zinc-900 dark:text-[#F0B21B] shadow-sm scale-[1.02]'
+                              : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-[#F0B21B]/50 text-zinc-700 dark:text-zinc-300'
+                          }`}
+                        >
+                          {count}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                      {photoshootCount === 1
+                        ? t('💡 اختيار ذكي: توليد صورة واحدة مميزة لتجربة فورية سريعة وتوفير الرصيد.')
+                        : t('💡 سيتم وضع المنتج في مشاهد وبيئات متنوعة ومختلفة بالذكاء الاصطناعي.')}
+                    </p>
                   </div>
                 )}
 
@@ -4290,7 +4360,9 @@ ${script.angle}` : script.content}
                           <Loader2 className="w-5 h-5 animate-spin" />
                           {t("جاري كتابة السكريبت...")}</>
                       ) : (
-                        autoGenerateVoiceover ? t('توليد الإسكريبت والفويس أوفر تلقائياً 🎙️') : t('توليد السكريبت 📄')
+                        autoGenerateVoiceover 
+                          ? (scriptCount === 1 ? t('توليد إسكريبت وفويس أوفر واحد 🎙️') : t(`توليد ${scriptCount} إسكريبتات وفويس أوفر تلقائياً 🎙️`))
+                          : (scriptCount === 1 ? t('توليد إسكريبت واحد 📄') : t(`توليد ${scriptCount} إسكريبتات 📄`))
                       )}
                     </button>
                     {isGeneratingScript && (
@@ -4315,7 +4387,7 @@ ${script.angle}` : script.content}
                           <Loader2 className="w-5 h-5 animate-spin" />
                           {t("جاري كتابة الإعلانات...")}</>
                       ) : (
-                        'توليد إعلانات فيسبوك (5 نسخ)'
+                        fbAdCount === 1 ? t('توليد إعلان فيسبوك (نسخة واحدة)') : t(`توليد إعلانات فيسبوك (${fbAdCount} نسخ)`)
                       )}
                     </button>
                     {isGeneratingFbAds && (
@@ -4521,7 +4593,7 @@ ${script.angle}` : script.content}
                           <Loader2 className="w-5 h-5 animate-spin" />
                           {t("جاري التصوير...")}</>
                       ) : (
-                        t('توليد مشاهد للمنتج (8 صور)')
+                        photoshootCount === 1 ? t('توليد مشهد للمنتج (صورة واحدة 📸)') : t(`توليد مشاهد للمنتج (${photoshootCount} صور 📸)`)
                       )}
                     </button>
                     {isGeneratingPhotoshoot && (
@@ -5747,6 +5819,23 @@ ${promptData.aiPrompt}`;
           </div>
         </div>
       )}
+
+      {/* Team Login Modal */}
+      <TeamLoginModal
+        isOpen={isTeamLoginOpen}
+        onClose={() => setIsTeamLoginOpen(false)}
+        onSuccess={(member) => {
+          setTeamUser(member);
+          setIsTeamLoginOpen(false);
+        }}
+      />
+
+      {/* Team Management Modal */}
+      <TeamManagementModal
+        isOpen={isTeamManagementOpen}
+        onClose={() => setIsTeamManagementOpen(false)}
+        currentUser={teamUser}
+      />
     </div>
     </AppContext.Provider>
   );

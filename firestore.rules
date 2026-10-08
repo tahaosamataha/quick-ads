@@ -183,47 +183,38 @@ service cloud.firestore {
     }
 
     match /history/{historyId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid);
-      allow create: if isSignedIn() && isValidId(historyId) && isValidHistory(incoming(), false);
-      allow update: if isSignedIn() 
-                    && isValidId(historyId) 
-                    && ((isDocOwnerUserId() || isAdmin()))
-                    && isValidHistory(incoming(), true);
-      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid || isAdmin());
+      allow read: if true;
+      allow write: if isValidId(historyId);
     }
 
     match /tokenTransactions/{transactionId} {
-      // Anyone involved in a transaction (the user or the agency owner) can read it
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agencyId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && isValidId(transactionId) && isValidTokenTransaction(incoming(), false);
-      allow update: if isAdmin(); // Transactions are generally immutable
-      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if true;
+      allow write: if isValidId(transactionId);
     }
 
     match /agencyTeams/{teamId} {
-      // Allowed if it's the owner or the invited member, or admin
-      allow read: if isSignedIn() && (resource.data.agencyId == request.auth.uid || resource.data.email == request.auth.token.email || isAdmin());
-      allow list: if isSignedIn() && (resource.data.agencyId == request.auth.uid || resource.data.email == request.auth.token.email || isAdmin());
-      allow create: if isSignedIn() 
-                    && isValidId(teamId) 
-                    && incoming().agencyId == request.auth.uid 
-                    && isValidAgencyTeam(incoming(), false);
-      allow update: if isSignedIn() 
-                    && isValidId(teamId) 
-                    && (resource.data.agencyId == request.auth.uid || isAdmin())
-                    && isValidAgencyTeam(incoming(), true)
-                    && (incoming().diff(existing()).affectedKeys().hasOnly(['role', 'permissions', 'tokenLimit', 'tokensUsed']) || isAdmin());
-      allow delete: if isSignedIn() && isValidId(teamId) && (resource.data.agencyId == request.auth.uid || isAdmin());
+      allow read: if true;
+      allow write: if isValidId(teamId);
+    }
+
+    match /system_settings/{settingId} {
+      allow read: if true;
+      allow write: if isValidId(settingId);
+    }
+
+    match /team_logins/{logId} {
+      allow read: if true;
+      allow write: if isValidId(logId);
+    }
+
+    match /team_ai_usage/{usageId} {
+      allow read: if true;
+      allow write: if isValidId(usageId);
     }
 
     match /integrations/{integrationId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && isValidId(integrationId) && isValidIntegration(incoming(), false);
-      allow update: if isSignedIn() && isValidId(integrationId) && (isDocOwnerUserId() || isAdmin()) && isValidIntegration(incoming(), true);
-      allow delete: if isSignedIn() && isValidId(integrationId) && (isDocOwnerUserId() || isAdmin());
+      allow read: if true;
+      allow write: if isValidId(integrationId);
     }
   }
 }

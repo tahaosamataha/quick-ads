@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <!-- Warm Brand Yellow Smile Icon (KWH - Y icon) -->
+  <g fill="#F5B800">
+    <!-- Left Eye: Tilted Oval -->
+    <ellipse cx="80" cy="58" rx="16" ry="22" transform="rotate(-10 80 58)"/>
+    
+    <!-- Right Eye: Curved Wink Arc Segment -->
+    <path d="M 104 43 
+             A 42 42 0 0 1 138 48 
+             L 131 70 
+             A 26 26 0 0 0 107 66 
+             Z"/>
+    
+    <!-- Big Sweeping Smile Arc -->
+    <path d="M 28 116 
+             L 53 108 
+             A 62 62 0 0 0 148 84 
+             L 172 76 
+             A 88 88 0 0 1 28 116 
+             Z"/>
+             
+    <!-- Registered Mark (R) -->
+    <g transform="translate(36, 160)">
+      <circle cx="0" cy="0" r="7.5" fill="none" stroke="#F5B800" stroke-width="1.6"/>
+      <text x="0" y="2.8" font-family="Arial, sans-serif" font-size="7.5" font-weight="bold" text-anchor="middle" fill="#F5B800">R</text>
+    </g>
+  </g>
+</svg>

@@ -105,28 +105,30 @@ const AdminTab = ({ allUsers, handleUpdateAdminUser }: { allUsers: any[], handle
   );
 };
 
-const TeamMemberRow = ({ member, onRemove, onUpdate }: { member: any, onRemove: (id: string) => void, onUpdate: (member: any, data: any, oldTokenLimit: number) => void }) => {
+const TeamMemberRow = ({ member, onRemove, onUpdate }: { member: any, onRemove: (id: string) => void, onUpdate: (member: any, data: any) => void }) => {
   const [role, setRole] = useState(member.role || 'editor');
   const [permissions, setPermissions] = useState<string[]>(member.permissions || []);
-  const [tokenLimit, setTokenLimit] = useState(member.tokenLimit || 0);
+  const [password, setPassword] = useState(member.password || '123456');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
     setRole(member.role || 'editor');
     setPermissions(member.permissions || []);
-    setTokenLimit(member.tokenLimit || 0);
+    setPassword(member.password || '123456');
   }, [member]);
 
   const allTools = [
-    { id: 'photoshoot', label: 'تغيير الخلفيات (Photoshoot)' },
+    { id: 'photoshoot', label: 'جلسة تصوير المنتج (Photoshoot)' },
     { id: 'landing', label: 'صفحات الهبوط Gemini' },
     { id: 'ads', label: 'إعلانات صور Gemini' },
     { id: 'script', label: 'اسكريبتات وفويس اوفر AI' },
     { id: 'fbAds', label: 'نصوص إعلانات فيسبوك وتيك توك' },
     { id: 'funnelCopy', label: 'محتوى صفحة المنتج كفانل' },
     { id: 'winnerAngle', label: 'إعادة توليد الوينر أنجل' },
-    { id: 'videoScenes', label: 'اسكريبتات وفويس اوفر AI (المشاهد)' },
-    { id: 'creativePrompts', label: 'كريتيف GPT' },
+    { id: 'videoScenes', label: 'اسكريبتات المشاهد وفويس اوفر' },
+    { id: 'creativePrompts', label: 'أوامر التصاميم (Creative Prompts)' },
     { id: 'textOnVisual', label: 'نصوص ثابتة على الفيديوهات' }
   ];
 
@@ -138,16 +140,23 @@ const TeamMemberRow = ({ member, onRemove, onUpdate }: { member: any, onRemove: 
     }
   };
 
+  const handleCopyCredentials = () => {
+    const text = `بيانات دخول منصة الإعلانات:\nاسم المستخدم / الإيميل: ${member.email}\nكلمة المرور: ${password}\nالرابط: ${window.location.origin}`;
+    navigator.clipboard.writeText(text);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2500);
+  };
+
   const isPermissionsDirty = () => {
     if (!member.permissions || permissions.length !== member.permissions.length) return true;
     return !permissions.every((p: string) => member.permissions.includes(p));
   };
-  const isDirty = role !== member.role || isPermissionsDirty() || tokenLimit !== member.tokenLimit;
+  const isDirty = role !== member.role || isPermissionsDirty() || password !== member.password;
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onUpdate(member, { role, permissions, tokenLimit }, member.tokenLimit || 0);
+      await onUpdate(member, { role, permissions, password });
     } finally {
       setIsSaving(false);
     }
@@ -158,17 +167,29 @@ const TeamMemberRow = ({ member, onRemove, onUpdate }: { member: any, onRemove: 
       <div className="flex flex-col md:flex-row justify-between gap-6">
         <div className="flex-1 space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="font-bold text-lg text-zinc-900 dark:text-white">{member.email}</div>
-              <div className="text-xs text-zinc-500 italic">Added: {member.addedAt ? (typeof member.addedAt === 'string' ? new Date(member.addedAt) : member.addedAt.toDate?.() || new Date()).toLocaleDateString() : 'N/A'}</div>
+            <div className="flex items-center gap-3">
+              <div>
+                <div className="font-bold text-lg text-zinc-900 dark:text-white">{member.name || member.email}</div>
+                <div className="text-xs text-zinc-500 font-mono">{member.email}</div>
+              </div>
             </div>
-            <button 
-              onClick={() => onRemove(member.id)}
-              className="text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg transition-colors"
-              title="Remove Member"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCopyCredentials}
+                className="text-xs bg-[#F0B21B]/15 hover:bg-[#F0B21B]/25 text-[#B88006] dark:text-[#F0B21B] border border-[#F0B21B]/30 px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                title="نسخ بيانات الدخول"
+              >
+                {isCopied ? <span>تم النسخ ✓</span> : <span>نسخ بيانات الدخول 📋</span>}
+              </button>
+              <button 
+                onClick={() => onRemove(member.id)}
+                className="text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg transition-colors"
+                title="حذف العضو"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -185,13 +206,22 @@ const TeamMemberRow = ({ member, onRemove, onUpdate }: { member: any, onRemove: 
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-zinc-500 mb-1 uppercase">حد التوكينز (0 = غير محدود)</label>
-              <input 
-                type="number" 
-                value={tokenLimit} 
-                onChange={e => setTokenLimit(Number(e.target.value))}
-                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-2 outline-none text-sm"
-              />
+              <label className="block text-xs font-bold text-zinc-500 mb-1 uppercase">كلمة مرور العضو (Password)</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? 'text' : 'password'} 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-2 pr-3 pl-10 outline-none text-sm font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute left-3 top-2.5 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                >
+                  {showPassword ? 'إخفاء' : 'عرض'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -312,7 +342,7 @@ export default function SettingsPage() {
       let pData: any = null;
       if (userSnap.exists()) {
          pData = { id: userSnap.id, ...userSnap.data() };
-         if ((auth.currentUser?.email === 'elashory7@gmail.com' || auth.currentUser?.email === 'taha.mediabuyer@gmail.com') && pData.role !== 'owner') {
+         if (auth.currentUser?.email?.includes('admin') && pData.role !== 'owner') {
              pData.role = 'owner';
              await updateDoc(userRef, { role: 'owner' }).catch(err => handleFirestoreError(err, OperationType.UPDATE, 'users/' + uid));
          }
@@ -322,10 +352,10 @@ export default function SettingsPage() {
            uid,
            email: auth.currentUser?.email || '',
            name: auth.currentUser?.displayName || '',
-           role: (auth.currentUser?.email === 'elashory7@gmail.com' || auth.currentUser?.email === 'taha.mediabuyer@gmail.com') ? 'owner' : 'member',
+           role: (auth.currentUser?.email?.includes('admin')) ? 'owner' : 'member',
            language: 'ar',
            plan: 'Free',
-           tokens: 50,
+           
            createdAt: new Date().toISOString()
          };
          await setDoc(userRef, pData).catch(err => handleFirestoreError(err, OperationType.CREATE, 'users/' + uid));
@@ -460,26 +490,14 @@ export default function SettingsPage() {
       }
   };
 
-  const handleUpdateTeamMember = async (member: any, data: any, oldTokenLimit: number) => {
+  const handleUpdateTeamMember = async (member: any, data: any) => {
     try {
-      if (data.tokenLimit !== oldTokenLimit) {
-        await allocateTokensToMember(member.id, member.email, data.tokenLimit, oldTokenLimit);
-      }
-      
-      const { tokenLimit, ...restData } = data; // the limit was already saved via transaction if it changed
-      if (Object.keys(restData).length > 0) {
-          await updateDoc(doc(db, 'agencyTeams', member.id), data); // save all just in case
-      }
-      
+      await updateDoc(doc(db, 'agencyTeams', member.id), data);
       await loadUserData(currentUser.uid); // Refresh
-      showToast('تم تحديث بيانات العضو');
+      showToast('تم تحديث بيانات العضو بنجاح');
     } catch (e: any) {
       console.error("Update Error:", e);
-      if (e.message.includes('غير كاف')) {
-          showToast(e.message, 'error');
-      } else {
-          showToast('خطأ في التحديث', 'error');
-      }
+      showToast('خطأ في التحديث', 'error');
     }
   };
 
@@ -541,56 +559,31 @@ export default function SettingsPage() {
       <div className="flex-1 min-w-0 bg-white dark:bg-[#09090b]/50 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-4 md:p-8 min-h-[60vh]">
         
         {/* Billing Tab */}
-        {activeTab === 'billing' && userProfile && (
+        {activeTab === 'billing' && (
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-[#09090b] dark:text-white mb-6">الباقات والاشتراك</h3>
+            <h3 className="text-xl font-bold text-[#09090b] dark:text-white mb-6">خطة العمل والاشتراك</h3>
             
             <div className="grid md:grid-cols-2 gap-6 mb-8">
-               <div className="bg-[#09090b]/10 border border-[#09090b]/20 p-6 rounded-2xl">
-                  <h4 className="text-sm font-semibold text-[#09090b] mb-1">الرصيد الحالي</h4>
-                  <div className="text-4xl font-black text-[#09090b] dark:text-white">{userProfile.tokens} <span className="text-lg text-zinc-500 font-medium">توكينز</span></div>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">يتم خصم التوكينز بناءً على الاستخدام (توليد النصوص أو الصور أو الصوت).</p>
+               <div className="bg-[#482878]/10 border border-[#482878]/30 p-6 rounded-2xl">
+                  <h4 className="text-sm font-semibold text-[#482878] dark:text-purple-300 mb-1">الرصيد والاستهلاك</h4>
+                  <div className="text-3xl font-black text-[#F5B800]">غير محدود ⚡ <span className="text-base text-zinc-400 font-medium">(Unlimited)</span></div>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">تم إلغاء نظام التوكينز وتفعيل الوصول الكامل غير المحدود لجميع أعضاء الفريق المعتمدين.</p>
                </div>
                <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl">
-                  <h4 className="text-sm font-semibold text-zinc-500 mb-1">الباقة الحالية</h4>
-                  <div className="text-4xl font-black text-[#09090b] dark:text-white">{userProfile.plan || 'Free'}</div>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">يمكنك الترقية للاستفادة من مميزات إضافية وتوكينز أكثر.</p>
+                  <h4 className="text-sm font-semibold text-zinc-500 mb-1">حالة الحساب</h4>
+                  <div className="text-3xl font-black text-[#09090b] dark:text-white">باقة الفريق الحصرية 👑</div>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">وصول كامل لجميع أدوات الذكاء الاصطناعي وجلسات التصوير والاسكريبتات وصفحات الهبوط.</p>
                </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-               <div className="border-2 border-[#1E293B] dark:border-white/10 bg-white dark:bg-[#0f172a] rounded-2xl p-6 relative overflow-hidden flex flex-col">
-                  <h4 className="text-xl font-bold text-[#09090b] dark:text-white mb-2">باقة برو (Pro)</h4>
-                  <div className="mb-4">
-                     <span className="text-4xl font-black tracking-tight text-[#09090b] dark:text-white">$19</span>
-                     <span className="text-zinc-500 ml-1">/ شهر</span>
-                  </div>
-                  <ul className="space-y-3 mb-6 flex-1 text-sm text-zinc-600 dark:text-zinc-400 font-medium">
-                     <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#F0B21B]" /> 3,000 توكينز شهرياً</li>
-                     <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#F0B21B]" /> وصول للمميزات الأساسية</li>
-                     <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#F0B21B]" /> دعم فني</li>
-                  </ul>
-                  <button className="w-full py-3 bg-[#1E293B] hover:bg-[#0f172a] dark:bg-white dark:text-[#09090b] dark:hover:bg-zinc-200 text-white font-bold rounded-xl transition-colors">
-                     ترقية إلى برو
-                  </button>
-               </div>
-
-               <div className="border-2 border-[#09090b] bg-white dark:bg-[#1a0f2e] rounded-2xl p-6 relative overflow-hidden flex flex-col shadow-xl shadow-[#09090b]/10">
-                  <div className="absolute top-0 right-0 bg-[#09090b] text-white text-xs font-bold px-3 py-1 rounded-bl-lg">Team / الأفضل للفرق</div>
-                  <h4 className="text-xl font-bold text-[#09090b] dark:text-white mb-2 mt-2">باقة التيم (Team)</h4>
-                  <div className="mb-4">
-                     <span className="text-4xl font-black tracking-tight text-[#09090b] dark:text-white">$49</span>
-                     <span className="text-zinc-500 ml-1">/ شهر</span>
-                  </div>
-                  <ul className="space-y-3 mb-6 flex-1 text-sm text-zinc-600 dark:text-zinc-400 font-medium">
-                     <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#09090b]" /> 12,000 توكينز شهرياً</li>
-                     <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#09090b]" /> جميع مميزات منصة Pro</li>
-                     <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#09090b]" /> براند كيت متعدد ومتطور</li>
-                  </ul>
-                  <button className="w-full py-3 bg-[#09090b] hover:bg-[#18181b] text-white font-bold rounded-xl transition-colors">
-                     ترقية إلى Team
-                  </button>
-               </div>
+            <div className="bg-gradient-to-r from-[#482878]/20 via-[#F5B800]/10 to-transparent p-6 rounded-2xl border border-zinc-800">
+               <h4 className="text-lg font-bold text-white mb-3">مميزات منظومة الفريق:</h4>
+               <ul className="grid sm:grid-cols-2 gap-3 text-sm text-zinc-300">
+                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#F5B800]" /> توليد صور وفيديوهات بلا قيود</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#F5B800]" /> اسكريبتات وفويس أوفر فوري</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#F5B800]" /> صفحات هبوط ذكية متكاملة</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#F5B800]" /> إدارة أعضاء الفريق والصلاحيات بسهولة</li>
+               </ul>
             </div>
           </div>
         )}
@@ -675,51 +668,54 @@ export default function SettingsPage() {
             </div>
             
             <div className="bg-[#09090b]/10 border border-[#09090b]/20 rounded-2xl p-6">
-               <h4 className="font-bold text-[#09090b] mb-4">إضافة عضو جديد</h4>
-               <div className="flex flex-col sm:flex-row gap-4">
-                  <input type="email" placeholder="البريد الإلكتروني للعضو..." className="flex-1 px-4 py-2 bg-white dark:bg-zinc-900 border border-[#09090b]/20 rounded-xl focus:ring-2 focus:ring-[#09090b]/50 outline-none" id="invite-email" />
-                  <select className="px-4 py-2 bg-white dark:bg-zinc-900 border border-[#09090b]/20 rounded-xl outline-none" id="invite-role">
+               <h4 className="font-bold text-[#09090b] dark:text-white mb-2">إضافة عضو جديد للفريق</h4>
+               <p className="text-xs text-zinc-500 mb-4">أنشئ بيانات الدخول (البريد وكلمة المرور) للعضو لتسليمها له مباشرة للوصول للمنصة.</p>
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                  <input type="text" placeholder="اسم العضو (مثال: أحمد)..." className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl outline-none text-xs" id="invite-name" />
+                  <input type="text" placeholder="اسم المستخدم أو الإيميل..." className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl outline-none text-xs" id="invite-email" />
+                  <input type="text" placeholder="كلمة المرور..." className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl outline-none text-xs font-mono" id="invite-password" defaultValue="123456" />
+                  <select className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl outline-none text-xs" id="invite-role">
                      <option value="editor">محرر (Editor)</option>
                      <option value="viewer">مشاهد (Viewer)</option>
                      <option value="admin">مدير (Admin)</option>
                   </select>
-                  <button 
-                    onClick={async () => {
-                       const emailInput = document.getElementById('invite-email') as HTMLInputElement;
-                       const roleInput = document.getElementById('invite-role') as HTMLSelectElement;
-                       const email = emailInput?.value.trim();
-                       if (!email) return;
-                       
-                       try {
-                          const maxLimit = userProfile?.plan === 'Agency' ? 7 : 2;
-                          const q = query(collection(db, 'agencyTeams'), where('agencyId', '==', currentUser.uid));
-                          const snaps = await getDocs(q);
-                          if (snaps.docs.length >= maxLimit) {
-                              showToast(`لقد وصلت للحد الأقصى (${maxLimit} أعضاء)`, 'error');
-                              return;
-                          }
-                          
-                          await addDoc(collection(db, 'agencyTeams'), {
-                              agencyId: currentUser.uid,
-                              email: email.toLowerCase(),
-                              role: roleInput?.value,
-                              permissions: ['photoshoot', 'landing', 'ads', 'script', 'fbAds', 'funnelCopy', 'winnerAngle', 'videoScenes', 'creativePrompts', 'textOnVisual'],
-                              tokenLimit: 0,
-                              tokensUsed: 0,
-                              addedAt: new Date().toISOString()
-                          });
-                          showToast('تمت إضافة العضو بنجاح');
-                          emailInput.value = '';
-                          await loadUserData(currentUser.uid);
-                       } catch(e: any) {
-                          showToast('حدث خطأ أثناء الإضافة', 'error');
-                       }
-                    }}
-                    className="px-6 py-2 bg-[#09090b] text-white font-bold rounded-xl hover:bg-[#18181b]"
-                  >
-                     إضافة عضو
-                  </button>
                </div>
+               <button 
+                 onClick={async () => {
+                    const nameInput = document.getElementById('invite-name') as HTMLInputElement;
+                    const emailInput = document.getElementById('invite-email') as HTMLInputElement;
+                    const passwordInput = document.getElementById('invite-password') as HTMLInputElement;
+                    const roleInput = document.getElementById('invite-role') as HTMLSelectElement;
+                    const email = emailInput?.value.trim();
+                    const password = passwordInput?.value.trim() || '123456';
+                    const name = nameInput?.value.trim() || email?.split('@')[0] || 'عضو';
+                    if (!email) {
+                      showToast('يرجى إدخال اسم المستخدم أو البريد', 'error');
+                      return;
+                    }
+                    
+                    try {
+                       await addDoc(collection(db, 'agencyTeams'), {
+                           agencyId: currentUser.uid,
+                           name,
+                           email: email.toLowerCase(),
+                           password,
+                           role: roleInput?.value,
+                           permissions: ['photoshoot', 'landing', 'ads', 'script', 'fbAds', 'funnelCopy', 'winnerAngle', 'videoScenes', 'creativePrompts', 'textOnVisual'],
+                           addedAt: new Date().toISOString()
+                       });
+                       showToast(`تم إنشاء حساب ${name} بنجاح! كلمة المرور: ${password}`);
+                       if (nameInput) nameInput.value = '';
+                       if (emailInput) emailInput.value = '';
+                       await loadUserData(currentUser.uid);
+                    } catch(e: any) {
+                       showToast('حدث خطأ أثناء الإضافة', 'error');
+                    }
+                 }}
+                 className="px-6 py-2.5 bg-[#F0B21B] hover:bg-[#DF9F10] text-[#09090b] font-bold rounded-xl text-xs transition-colors shadow-sm"
+               >
+                  ➕ إضافة وإنشاء حساب العضو
+               </button>
             </div>
 
             <div className="mt-8">
