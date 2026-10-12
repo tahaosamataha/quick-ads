@@ -1653,7 +1653,7 @@ const scenes = await generateVideoScenes(finalDescription, dialect, videoGenerat
 
     try {
       if (controller.signal.aborted) return;
-      setPhotoshootProgress({ step: 'جاري ابتكار أفكار للمشاهد...', current: 0, total: 8 });
+      setPhotoshootProgress({ step: 'جاري ابتكار أفكار للمشاهد...', current: 0, total: photoshootCount });
       
       const refImage = images[0];
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -1675,6 +1675,7 @@ const scenes = await generateVideoScenes(finalDescription, dialect, videoGenerat
       const prompts = await generateScenePrompts(description, photoshootCount, aiModel);
       await deductTokens(TOKEN_COSTS.IMAGE, 'Photoshoot AI', extractUrl, productName);
       const results: {url: string, prompt: string}[] = [];
+      let lastSceneError: any = null;
 
       for (let i = 0; i < prompts.length; i++) {
         if (controller.signal.aborted) return;
@@ -1686,7 +1687,7 @@ const scenes = await generateVideoScenes(finalDescription, dialect, videoGenerat
           setPhotoshootImages([...results]);
           if (i < prompts.length - 1) {
             let waited = 0;
-            while (waited < 8000) {
+            while (waited < 3000) {
               if (controller.signal.aborted) return;
               await new Promise(resolve => setTimeout(resolve, 100));
               waited += 100;
@@ -1694,8 +1695,9 @@ const scenes = await generateVideoScenes(finalDescription, dialect, videoGenerat
           }
         } catch (err: any) {
           console.error(`Failed to generate scene ${i}:`, err);
-          if (err?.message?.includes('429') || err?.message?.includes('quota')) {
-            throw new Error('تم الوصول للحد الأقصى للاستخدام المجاني.');
+          lastSceneError = err;
+          if (err?.message?.includes('429') || err?.message?.includes('quota') || err?.status === 'RESOURCE_EXHAUSTED') {
+            throw new Error('تم الوصول للحد الأقصى للاستخدام المجاني للصور (Rate limit / Quota). يرجى الانتظار دقيقة والمحاولة مجدداً.');
           }
           // Continue to next prompt if it's not a rate limit error
         }
@@ -1703,6 +1705,9 @@ const scenes = await generateVideoScenes(finalDescription, dialect, videoGenerat
       
       if (controller.signal.aborted) return;
       if (results.length === 0) {
+        if (lastSceneError?.message) {
+          throw new Error(`فشل في توليد المشاهد: ${lastSceneError.message}`);
+        }
         throw new Error("فشل في توليد أي مشاهد. يرجى المحاولة مرة أخرى.");
       }
       setPhotoshootProgress({ step: 'اكتملت جلسة التصوير!', current: prompts.length, total: prompts.length });

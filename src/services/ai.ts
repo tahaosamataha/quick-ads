@@ -849,42 +849,70 @@ export async function generateBackgroundImage(
   brandKit?: any
 ): Promise<string> {
   const brandKitInstruction = typeof brandKit !== 'undefined' ? getBrandKitInstruction(brandKit) : '';
-  const modelName = modelType === 'pro' ? 'gemini-3.1-pro-preview' : 'gemini-3.8-flash';
+  
+  // Use dedicated multimodal image generation models
+  const modelsToTry = modelType === 'pro'
+    ? ['gemini-nano-banana-2.1', 'gemini-3.1-flash-lite-image']
+    : ['gemini-3.1-flash-lite-image'];
 
-  try {
-    const response = await getAI().models.generateContent({
-      model: modelName,
-      contents: {
-        parts: [
-          {
-            inlineData: { data: referenceImage.base64, mimeType: referenceImage.mimeType }
-          },
-          {
-            text: `Edit this image to place the product in this dynamic scene: ${prompt}. 
-            CRITICAL: Integrate the product naturally into the scene. If the prompt asks for water splashing, add realistic water splashes over the product. If it asks for a person holding or using it, generate realistic hands or people interacting with the product. Keep the main product design intact and clearly visible, but allow environmental effects (lighting, shadows, water, dust, hands) to interact with it. Professional product photography, 8k resolution, highly detailed.`
-          }
-        ]
-      }
-    });
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:${part.inlineData.mimeType || 'image/jpeg'};base64,${part.inlineData.data}`;
-      }
-    }
-    
-    throw new Error("No image generated");
-  } catch (error: any) {
-    const isRateLimit = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota') || error?.status === 'RESOURCE_EXHAUSTED';
-    const isInternalError = error?.status === 500 || error?.message?.includes('500') || error?.message?.includes('Internal error') || error?.status === 'INTERNAL';
-    
-    if ((isRateLimit || isInternalError) && retries > 0) {
-      console.warn(`API error (${isRateLimit ? 'Rate Limit' : 'Internal Error'}). Retrying in ${delay}ms... (${retries} retries left)`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return generateBackgroundImage(referenceImage, prompt, modelType, retries - 1, delay * 2);
-    }
-    throw error;
+  let cleanBase64 = referenceImage?.base64 || '';
+  if (cleanBase64.includes(',')) {
+    cleanBase64 = cleanBase64.split(',')[1];
   }
+  let cleanMimeType = referenceImage?.mimeType || 'image/jpeg';
+  if (cleanMimeType.includes(';')) {
+    cleanMimeType = cleanMimeType.split(';')[0];
+  }
+
+  const parts: any[] = [];
+  if (cleanBase64) {
+    parts.push({
+      inlineData: { data: cleanBase64, mimeType: cleanMimeType }
+    });
+  }
+  parts.push({
+    text: `Edit this image to place the product in this dynamic scene: ${prompt}. 
+    CRITICAL: Integrate the product naturally into the scene. If the prompt asks for water splashing, add realistic water splashes over the product. If it asks for a person holding or using it, generate realistic hands or people interacting with the product. Keep the main product design intact and clearly visible, but allow environmental effects (lighting, shadows, water, dust, hands) to interact with it. Professional product photography, 8k resolution, highly detailed.${brandKitInstruction}`
+  });
+
+  let lastError: any = null;
+
+  for (const currentModel of modelsToTry) {
+    try {
+      const response = await getAI().models.generateContent({
+        model: currentModel,
+        contents: {
+          parts
+        }
+      });
+
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData?.data) {
+          return `data:${part.inlineData.mimeType || 'image/jpeg'};base64,${part.inlineData.data}`;
+        }
+      }
+      
+      console.warn(`Model ${currentModel} returned no image inlineData, attempting fallback...`);
+    } catch (error: any) {
+      lastError = error;
+      const isRateLimit = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota') || error?.status === 'RESOURCE_EXHAUSTED';
+      const isInternalError = error?.status === 500 || error?.message?.includes('500') || error?.message?.includes('Internal error') || error?.status === 'INTERNAL';
+
+      console.warn(`Model ${currentModel} error:`, error?.message || error);
+
+      if ((isRateLimit || isInternalError) && retries > 0) {
+        console.warn(`API error on ${currentModel}. Retrying in ${delay}ms... (${retries} retries left)`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return generateBackgroundImage(referenceImage, prompt, modelType, retries - 1, delay * 2, brandKit);
+      }
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  throw new Error("لم يتمكن النموذج من توليد الصورة.");
 }
 
 export async function generateVideoScript(
